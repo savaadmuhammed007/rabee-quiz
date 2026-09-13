@@ -600,18 +600,42 @@ export const getLastSyncTime = () => {
 // Send registration or completed quiz result to Google Sheet Web App
 export const sendToGoogleSheet = async (payload) => {
   const scriptUrl = getGoogleSheetUrl();
-  if (!scriptUrl) return { success: false, reason: 'No Google Sheet URL configured' };
+  if (!scriptUrl) {
+    console.warn('sendToGoogleSheet: No Google Sheet URL configured on this device.');
+    return { success: false, reason: 'No Google Sheet URL configured' };
+  }
+
+  // A docs.google.com/spreadsheets link cannot accept POST webhooks
+  if (scriptUrl.includes('docs.google.com/spreadsheets')) {
+    console.warn('sendToGoogleSheet: Cannot POST to spreadsheet link. Must be Apps Script Web App (/exec).');
+    return { success: false, reason: 'Requires Google Apps Script Web App URL ending in /exec' };
+  }
 
   try {
-    // Uses text/plain to avoid CORS preflight failures on Google Apps Script Web App
-    await fetch(scriptUrl, {
+    const jsonString = JSON.stringify(payload);
+
+    // 1. Primary delivery: standard fetch with no-cors
+    const fetchPromise = fetch(scriptUrl, {
       method: 'POST',
       mode: 'no-cors',
       headers: {
         'Content-Type': 'text/plain;charset=utf-8',
       },
-      body: JSON.stringify(payload),
+      body: jsonString,
     });
+
+    // 2. High-reliability mobile fallback: navigator.sendBeacon (guarantees delivery on iOS/Android tab close)
+    if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+      try {
+        const blob = new Blob([jsonString], { type: 'text/plain;charset=utf-8' });
+        navigator.sendBeacon(scriptUrl, blob);
+      } catch (beaconErr) {
+        // Beacon is an enhancement, fetch is primary
+      }
+    }
+
+    await fetchPromise;
+    console.log('sendToGoogleSheet: Dispatched payload successfully');
     return { success: true };
   } catch (err) {
     console.warn('Google Sheet sync notice:', err.message);
@@ -981,9 +1005,25 @@ export const GOOGLE_APPS_SCRIPT_TEMPLATE = `// =================================
 // ==========================================
 
 function doPost(e) {
+  var lock = LockService.getScriptLock();
   try {
+    // Acquire lock for up to 30 seconds to handle concurrent participant submissions
+    lock.tryLock(30000);
+
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var data = JSON.parse(e.postData.contents);
+    var raw = '';
+    if (e && e.postData && e.postData.contents) {
+      raw = e.postData.contents;
+    } else if (e && e.parameter && e.parameter.data) {
+      raw = e.parameter.data;
+    }
+
+    if (!raw) {
+      return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'No payload' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    var data = typeof raw === 'string' ? JSON.parse(raw) : raw;
     var action = data.action;
 
     // 1. Record Completed Quiz Results
@@ -1093,6 +1133,8 @@ function doPost(e) {
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ status: 'error', error: err.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
+  } finally {
+    lock.releaseLock();
   }
 }
 
