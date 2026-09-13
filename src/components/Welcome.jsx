@@ -132,6 +132,7 @@ export default function Welcome({ onStartRegistration, onResumeQuiz, isCompleted
 
       {/* Note on Participation Rules */}
       <div className="text-center text-xs text-slate-400 space-y-1">
+        <p>• Registration restricted to official candidates (MAICQ01 – MAICQ35)</p>
         <p>• Only 1 submission allowed per browser device</p>
         <p>• Answers and scores are recorded for administrative evaluation only</p>
       </div>

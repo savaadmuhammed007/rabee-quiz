@@ -116,4 +116,31 @@ const remaining = 600 - elapsed;
 console.assert(remaining >= 449 && remaining <= 451, `Remaining seconds unexpected: ${remaining}`);
 console.log(`✓ Resilient timer calculates remaining time across page reloads: ${remaining}s remaining (${Math.floor(remaining/60)}m ${remaining%60}s).`);
 
+console.log('\n--- 5. Candidate Code Registry & Lookup Verification ---');
+const { CANDIDATES, findCandidateByCode, isCandidateAuthorized } = await import('./src/data/candidates.js');
+console.assert(CANDIDATES.length === 35, `Expected 35 candidates, got ${CANDIDATES.length}`);
+console.log(`✓ Total authorized candidates: ${CANDIDATES.length}`);
+
+// Test first and last candidate
+const c1 = findCandidateByCode('MAICQ01');
+console.assert(c1 && c1.name === 'Junaitha' && c1.place === 'Arattupuza', 'MAICQ01 lookup failed');
+
+const c30 = findCandidateByCode('MAICQ30');
+console.assert(c30 && c30.name === 'Muhammed Aman' && c30.place === 'Arattupuzha', 'MAICQ30 lookup failed');
+
+const c35 = findCandidateByCode('MAICQ35');
+console.assert(c35 && c35.code === 'MAICQ35', 'MAICQ35 lookup failed');
+
+// Test case insensitivity & whitespace trimming
+const cLowercase = findCandidateByCode('  maicq12  ');
+console.assert(cLowercase && cLowercase.name === 'SAYYID JUNAID AHAMMED KV' && cLowercase.place === 'MALAPPURAM', 'Lowercase/trimmed lookup failed');
+
+// Test unauthorized / invalid code
+const cInvalid = findCandidateByCode('MAICQ99');
+console.assert(cInvalid === null, 'Invalid code should return null');
+console.assert(isCandidateAuthorized('MAICQ99') === false, 'Invalid code authorization should be false');
+console.assert(isCandidateAuthorized('MAICQ05') === true, 'MAICQ05 authorization should be true');
+console.log('✓ Candidate lookup, case normalization, trimming, and invalid code rejection verified.');
+
 console.log('\n=== ALL AUTOMATED TESTS PASSED SUCCESSFULLY! ===');
+

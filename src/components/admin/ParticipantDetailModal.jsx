@@ -32,8 +32,6 @@ export default function ParticipantDetailModal({
   onClose,
   onDeleteParticipant,
 }) {
-  if (!participant && !result) return null;
-
   const [activeTab, setActiveTab] = useState(initialTab || 'overview');
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedPhone, setCopiedPhone] = useState(false);
@@ -46,15 +44,17 @@ export default function ParticipantDetailModal({
 
   // Lock body scroll when modal is active
   useEffect(() => {
+    if (!participant && !result) return;
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = originalOverflow;
     };
-  }, []);
+  }, [participant, result]);
 
   // Keyboard shortcut: Escape to close
   useEffect(() => {
+    if (!participant && !result) return;
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         onClose();
@@ -62,7 +62,9 @@ export default function ParticipantDetailModal({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [participant, result, onClose]);
+
+  if (!participant && !result) return null;
 
   // Consolidate participant and result fields
   const data = result || participant || {};
