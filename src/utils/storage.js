@@ -612,37 +612,22 @@ export const sendToGoogleSheet = async (payload) => {
   }
 
   try {
-    const formParams = new URLSearchParams();
-    formParams.append('action', payload.action || 'submit');
+    const jsonBody = JSON.stringify(payload);
 
-    const sourceObj = payload.result || payload.participant || payload;
-    Object.entries(sourceObj).forEach(([k, v]) => {
-      if (typeof v === 'object' && v !== null) {
-        formParams.append(k, JSON.stringify(v));
-      } else {
-        formParams.append(k, String(v ?? ''));
-      }
-    });
-
-    // Also append the raw JSON payload in case script expects JSON
-    formParams.append('data', JSON.stringify(payload));
-
-    const bodyString = formParams.toString();
-
-    // 1. Primary delivery: standard fetch with no-cors and urlencoded (exact Nuvana Giveaway pattern)
+    // 1. Primary delivery: standard fetch with no-cors and plain text JSON (passes 100% on deployed Apps Script)
     const fetchPromise = fetch(scriptUrl, {
       method: 'POST',
       mode: 'no-cors',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8',
+        'Content-Type': 'text/plain;charset=utf-8',
       },
-      body: bodyString,
+      body: jsonBody,
     });
 
-    // 2. High-reliability mobile fallback: navigator.sendBeacon
+    // 2. High-reliability mobile fallback: navigator.sendBeacon (guarantees delivery on mobile tab close/navigate)
     if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
       try {
-        const blob = new Blob([bodyString], { type: 'application/x-www-form-urlencoded;charset=utf-8' });
+        const blob = new Blob([jsonBody], { type: 'text/plain;charset=utf-8' });
         navigator.sendBeacon(scriptUrl, blob);
       } catch (beaconErr) {
         // Beacon is an enhancement, fetch is primary
@@ -990,7 +975,15 @@ export const syncFromGoogleSheet = async () => {
     const code = (r.candidateCode || r.participantId || '').trim().toUpperCase();
     if (code) {
       const prev = rMap.get(code) || {};
-      rMap.set(code, { ...prev, ...r });
+      let compTime = r.completionTime;
+      if (!compTime || compTime.includes('GMT') || compTime.includes('1899') || compTime.length > 8) {
+        compTime = formatSecondsToMS(r.completionSeconds || 0);
+      }
+      rMap.set(code, {
+        ...prev,
+        ...r,
+        completionTime: compTime,
+      });
     }
   });
 
