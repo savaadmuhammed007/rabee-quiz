@@ -240,21 +240,30 @@ export const getRemainingTime = (startedAt) => {
 
 export const calculateScore = (userAnswers = {}, questionList = questions, elapsedSeconds = 600) => {
   let correctAnswers = 0;
-  
+  let answeredCount = 0;
+
   questionList.forEach((q) => {
     const answer = userAnswers[q.id];
-    if (answer !== undefined && answer !== null && Number(answer) === q.correctAnswer) {
-      correctAnswers += 1;
+    if (answer !== undefined && answer !== null && answer !== '') {
+      answeredCount += 1;
+      if (Number(answer) === q.correctAnswer) {
+        correctAnswers += 1;
+      }
     }
   });
 
   const baseScore = correctAnswers * 1; // 1 mark per correct answer
-  const bonusMarks = calculateSpeedBonus(elapsedSeconds);
+
+  // STRICT REQUIREMENT: Only give speed bonus to participants who attended ALL questions!
+  const attendedAllQuestions = answeredCount >= questionList.length;
+  const bonusMarks = attendedAllQuestions ? calculateSpeedBonus(elapsedSeconds) : 0;
   const finalScore = baseScore + bonusMarks;
 
   return {
     correctAnswers,
     totalQuestions: questionList.length,
+    answeredCount,
+    attendedAllQuestions,
     baseScore,
     bonusMarks,
     finalScore,
@@ -317,6 +326,8 @@ export const submitQuizAttempt = (reason = 'manual') => {
     completionTime: formatSecondsToMS(elapsedSeconds),
     correctAnswers: scoring.correctAnswers,
     totalQuestions: scoring.totalQuestions,
+    answeredCount: scoring.answeredCount,
+    attendedAllQuestions: scoring.attendedAllQuestions,
     baseScore: scoring.baseScore,
     bonusMarks: scoring.bonusMarks,
     finalScore: scoring.finalScore,

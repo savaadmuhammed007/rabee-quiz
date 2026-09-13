@@ -502,7 +502,7 @@ export default function AdminSettings({
           Speed Bonus Configuration
         </h3>
         <p className="text-xs text-slate-500 mb-4">
-          Participants who complete the 20 questions faster earn extra bonus marks added to their correct answer base score.
+          Participants who complete the 20 questions faster earn extra bonus marks added to their correct answer base score. (⚠️ Note: Speed bonus is strictly awarded only to participants who attended all 20 questions).
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

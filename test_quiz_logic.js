@@ -65,30 +65,49 @@ console.assert(calculateSpeedBonus(601) === 0, 'Expired bonus should be 0');
 
 console.log('✓ All 9 speed bonus tiers correctly verified (≤2m: +10, 3m: +9, 4m: +8, 5m: +7, 6m: +6, 7m: +5, 8m: +4, 9m: +3, 10m: +2).');
 
-console.log('\n--- 3. Score Evaluation Verification ---');
-const answers = {};
-// Correctly answer first 18 questions, leave 2 wrong/unanswered
-for (let i = 1; i <= 18; i++) {
-  answers[i] = questions[i - 1].correctAnswer;
-}
-answers[19] = (questions[18].correctAnswer + 1) % 4; // intentionally wrong
-// 20 is left unanswered
+console.log('\n--- 3. Score Evaluation & All-Questions-Attended Requirement Verification ---');
 
-let correctCount = 0;
-questions.forEach((q) => {
-  if (answers[q.id] !== undefined && answers[q.id] === q.correctAnswer) {
-    correctCount++;
-  }
-});
-const baseScore = correctCount * 1;
-const bonusMarks = calculateSpeedBonus(110); // 1m 50s (< 2m) -> +10 bonus
-const finalScore = baseScore + bonusMarks;
+const evaluateScore = (userAnswers, elapsedSeconds = 110) => {
+  let correctAnswers = 0;
+  let answeredCount = 0;
+  questions.forEach((q) => {
+    const answer = userAnswers[q.id];
+    if (answer !== undefined && answer !== null && answer !== '') {
+      answeredCount += 1;
+      if (Number(answer) === q.correctAnswer) {
+        correctAnswers += 1;
+      }
+    }
+  });
+  const baseScore = correctAnswers * 1;
+  const attendedAll = answeredCount >= questions.length;
+  const bonusMarks = attendedAll ? calculateSpeedBonus(elapsedSeconds) : 0;
+  return { correctAnswers, answeredCount, attendedAll, baseScore, bonusMarks, finalScore: baseScore + bonusMarks };
+};
 
-console.assert(correctCount === 18, `Expected 18 correct, got ${correctCount}`);
-console.assert(baseScore === 18, `Expected base score 18, got ${baseScore}`);
-console.assert(bonusMarks === 10, `Expected bonus 10, got ${bonusMarks}`);
-console.assert(finalScore === 28, `Expected final score 28, got ${finalScore}`);
-console.log(`✓ 18 correct answers = base ${baseScore} + speed bonus ${bonusMarks} = Final Score ${finalScore} points.`);
+// Case 1: Participant attended ALL 20 questions (18 correct, 2 wrong, 110 seconds)
+const fullAnswers = {};
+for (let i = 1; i <= 18; i++) fullAnswers[i] = questions[i - 1].correctAnswer;
+fullAnswers[19] = (questions[18].correctAnswer + 1) % 4; // answered wrong
+fullAnswers[20] = (questions[19].correctAnswer + 1) % 4; // answered wrong
+
+const resAllAttended = evaluateScore(fullAnswers, 110);
+console.assert(resAllAttended.answeredCount === 20, 'Expected 20 answered');
+console.assert(resAllAttended.attendedAll === true, 'Expected attendedAll true');
+console.assert(resAllAttended.bonusMarks === 10, `Expected bonus 10, got ${resAllAttended.bonusMarks}`);
+console.assert(resAllAttended.finalScore === 28, `Expected final score 28, got ${resAllAttended.finalScore}`);
+console.log(`✓ Case 1 (All 20 questions attended in 1m 50s): base ${resAllAttended.baseScore} + speed bonus ${resAllAttended.bonusMarks} = Final Score ${resAllAttended.finalScore} pts.`);
+
+// Case 2: Participant skipped 1 question (19 attended, 18 correct, 110 seconds)
+const partialAnswers = { ...fullAnswers };
+delete partialAnswers[20]; // left question 20 unattended
+
+const resPartial = evaluateScore(partialAnswers, 110);
+console.assert(resPartial.answeredCount === 19, 'Expected 19 answered');
+console.assert(resPartial.attendedAll === false, 'Expected attendedAll false');
+console.assert(resPartial.bonusMarks === 0, `Expected bonus 0 when questions skipped, got ${resPartial.bonusMarks}`);
+console.assert(resPartial.finalScore === 18, `Expected final score 18, got ${resPartial.finalScore}`);
+console.log(`✓ Case 2 (19/20 questions attended in 1m 50s): Speed bonus DENIED (0 pts). Final score: ${resPartial.finalScore} pts.`);
 
 console.log('\n--- 4. Resilient Timer Formula Verification ---');
 const startTime = Date.now() - 150000; // started 150 seconds ago (2m 30s)

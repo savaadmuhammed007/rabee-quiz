@@ -318,9 +318,14 @@ export default function Quiz({ quizState, onSubmitQuiz, onAutoSubmit }) {
                 {answeredCount} / {questions.length} Answered
               </div>
               {answeredCount < questions.length && (
-                <div className="text-xs text-amber-700 mt-1 font-medium flex items-center justify-center gap-1">
-                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-                  <span>{questions.length - answeredCount} unanswered questions remain!</span>
+                <div className="mt-2 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-left">
+                  <div className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    <span>{questions.length - answeredCount} ചോദ്യങ്ങൾക്ക് ഉത്തരം നൽകിയിട്ടില്ല!</span>
+                  </div>
+                  <p className="text-[11px] text-amber-800 mt-1 font-malayalam leading-relaxed">
+                    ശ്രദ്ധിക്കുക: എല്ലാ ചോദ്യങ്ങൾക്കും (20/20) ഉത്തരം നൽകിയാൽ മാത്രമേ സ്പീഡ് ബോണസ് മാർക്കുകൾ ലഭിക്കുകയുള്ളൂ.
+                  </p>
                 </div>
               )}
             </div>

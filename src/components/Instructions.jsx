@@ -79,7 +79,7 @@ export default function Instructions({ participant, onStartQuiz }) {
               <Award className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
             <div className="text-xs sm:text-sm font-semibold text-slate-900 leading-relaxed font-malayalam">
-              വിജയികളെ നിർണയിക്കുന്നതിൽ വേഗത, ശരിയുത്തരങ്ങളുടെ കൃത്യത പരിഗണിക്കപ്പെടും.
+              വിജയികളെ നിർണയിക്കുന്നതിൽ വേഗത, ശരിയുത്തരങ്ങളുടെ കൃത്യത പരിഗണിക്കപ്പെടും. (എല്ലാ ചോദ്യങ്ങൾക്കും ഉത്തരം നൽകിയവർക്ക് മാത്രമേ സ്പീഡ് ബോണസ് മാർക്കുകൾ ലഭിക്കൂ).
             </div>
           </div>
 

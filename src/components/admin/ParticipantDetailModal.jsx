@@ -89,6 +89,11 @@ export default function ParticipantDetailModal({
   const registeredAt = participant?.registeredAt || result?.registeredAt;
   const userAnswers = result?.answers || {};
   const totalQuestions = result?.totalQuestions || 20;
+  const answeredCount =
+    result?.answeredCount ??
+    Object.keys(userAnswers).filter(
+      (k) => userAnswers[k] !== undefined && userAnswers[k] !== null && userAnswers[k] !== ''
+    ).length;
   const correctCount = result?.correctAnswers ?? 0;
   const bonusMarks = result?.bonusMarks ?? 0;
   const finalScore = result?.finalScore ?? correctCount;
@@ -112,7 +117,10 @@ export default function ParticipantDetailModal({
   };
 
   // Speed Bonus Tier Descriptor
-  const getSpeedTierNote = (secs, bonus) => {
+  const getSpeedTierNote = (secs, bonus, answered, total) => {
+    if (answered !== undefined && total !== undefined && answered < total) {
+      return `Speed Bonus: 0 pts (All ${total} questions must be attended to earn bonus. ${answered}/${total} attended)`;
+    }
     if (!bonus || bonus <= 0) return 'Standard Completion (+0 speed bonus)';
     const mins = Math.max(1, Math.ceil((secs || 0) / 60));
     return `Speed Bonus: Completed in ≤ ${mins} mins (+${bonus} pts)`;
@@ -259,11 +267,11 @@ export default function ParticipantDetailModal({
                           {finalScore}
                         </span>
                         <span className="text-sm sm:text-base font-semibold text-emerald-300/80">
-                          / 25 Marks Max
+                          / 30 Marks Max
                         </span>
                       </div>
                       <p className="text-[11px] text-emerald-200/80 mt-1">
-                        {getSpeedTierNote(completionSeconds, bonusMarks)}
+                        {getSpeedTierNote(completionSeconds, bonusMarks, answeredCount, totalQuestions)}
                       </p>
                     </div>
 
