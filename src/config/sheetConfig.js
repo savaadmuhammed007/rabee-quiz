@@ -1,12 +1,14 @@
 /**
- * Google Sheet Live Sync Configuration
+ * Google Sheet Live Sync Configuration (Multi-Device Endpoint)
+ * Exact same architecture as Nuvana Giveaway.
  *
- * If you set your Google Apps Script Web App URL below or via VITE_GOOGLE_SHEET_URL,
- * every participant device opening the quiz will automatically send registrations
- * and completed submissions to your Google Sheet without any manual setup per phone!
+ * If set below or via VITE_GOOGLE_SCRIPT_URL in .env,
+ * every single participant device opening the quiz on any phone
+ * will automatically submit registrations and quiz attempts to your Google Sheet!
  */
 
 export const DEFAULT_GOOGLE_SHEET_URL =
-  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GOOGLE_SHEET_URL)
-    ? import.meta.env.VITE_GOOGLE_SHEET_URL.trim()
+  (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_GOOGLE_SCRIPT_URL || import.meta.env.VITE_GOOGLE_SHEET_URL))
+    ? (import.meta.env.VITE_GOOGLE_SCRIPT_URL || import.meta.env.VITE_GOOGLE_SHEET_URL).trim()
     : '';
+
