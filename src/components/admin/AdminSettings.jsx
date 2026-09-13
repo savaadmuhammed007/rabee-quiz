@@ -254,13 +254,16 @@ export default function AdminSettings({
         {/* Web App URL Form */}
         <form onSubmit={handleSaveSheetUrl} className="space-y-3 mb-6">
           <label className="block text-xs font-bold text-slate-800">
-            Google Apps Script Web App URL
+            Google Apps Script Web App URL (or Google Sheet Link)
           </label>
           <div className="flex flex-col sm:flex-row gap-2">
             <input
               type="url"
               value={sheetUrlInput}
-              onChange={(e) => setSheetUrlInput(e.target.value)}
+              onChange={(e) => {
+                setSheetUrlInput(e.target.value);
+                setTestStatus(null);
+              }}
               placeholder="https://script.google.com/macros/s/AKfycb.../exec"
               className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-mono focus:outline-none focus:border-emerald-500 bg-slate-50/50"
             />
@@ -283,17 +286,67 @@ export default function AdminSettings({
             </div>
           </div>
 
+          {/* Live URL Helper / Format Detection */}
+          {sheetUrlInput.trim() && (
+            <div>
+              {sheetUrlInput.includes('docs.google.com/spreadsheets') && (
+                <div className="p-2.5 rounded-lg bg-teal-50 border border-teal-200 text-[11px] text-teal-900">
+                  <span className="font-bold">✓ Google Spreadsheet link detected: </span>
+                  Live evaluator results will be read directly via Google Sheets API (make sure sheet sharing is set to "Anyone with the link can view").
+                  For participant phones to submit their answers, also deploy the Apps Script Web App below.
+                </div>
+              )}
+              {(sheetUrlInput.endsWith('/dev') || sheetUrlInput.includes('/dev?')) && (
+                <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-[11px] text-rose-900">
+                  <span className="font-bold">⚠️ /dev URL detected: </span>
+                  Test URLs ending in <code>/dev</code> require Google login and will cause "Failed to fetch". In Apps Script, click Deploy &gt; New deployment &gt; select "Web app" &gt; set "Who has access" to "Anyone", and copy the <code>/exec</code> URL.
+                </div>
+              )}
+              {(sheetUrlInput.includes('home/projects') || sheetUrlInput.includes('/edit')) && (
+                <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-900">
+                  <span className="font-bold">⚠️ Apps Script Editor link detected: </span>
+                  This is your code editing window link. Click the blue <strong>Deploy &gt; New deployment</strong> button (top right), select "Web app", set access to "Anyone", and copy the Web App URL ending in <code>/exec</code>.
+                </div>
+              )}
+              {sheetUrlInput.includes('script.google.com/macros/s/') && sheetUrlInput.includes('/exec') && (
+                <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-900 font-medium">
+                  ✓ Valid Google Apps Script Web App URL format.
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Test Status feedback */}
           {testStatus && (
-            <div
-              className={`p-3 rounded-xl border text-xs font-semibold flex items-center gap-2 ${
-                testStatus.type === 'error'
-                  ? 'bg-rose-50 border-rose-200 text-rose-800'
-                  : 'bg-emerald-50 border-emerald-200 text-emerald-800'
-              }`}
-            >
-              {testStatus.type === 'error' ? <AlertTriangle className="w-4 h-4 shrink-0" /> : <Check className="w-4 h-4 shrink-0" />}
-              <span>{testStatus.message}</span>
+            <div>
+              {testStatus.type === 'error' ? (
+                <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-900 space-y-2.5">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="font-bold text-rose-900">Connection Failed: Google blocked access ("Failed to fetch")</div>
+                      <div className="text-[11px] text-rose-800/90 mt-0.5">{testStatus.message}</div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white/90 p-3 rounded-lg border border-rose-200 text-slate-800 space-y-1.5">
+                    <div className="font-bold text-rose-900 text-xs">⚡ How to fix in 30 seconds:</div>
+                    <ol className="list-decimal list-inside space-y-1 text-[11px] text-slate-700 pl-1">
+                      <li>In your Google Sheet, click <strong className="text-slate-900">Extensions &gt; Apps Script</strong>.</li>
+                      <li>Click the blue <strong className="text-slate-900">Deploy</strong> button (top right) &gt; select <strong className="text-slate-900">Manage deployments</strong>.</li>
+                      <li>Click the <strong className="text-slate-900">pencil (Edit) icon</strong> on your active deployment.</li>
+                      <li>Change <strong className="text-slate-900">Who has access</strong> from <em>"Only myself"</em> to <strong className="text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-300">"Anyone"</strong>.</li>
+                      <li>Under Version, click the dropdown and choose <strong className="text-slate-900">"New version"</strong>.</li>
+                      <li>Click <strong className="text-slate-900">Deploy</strong>, then re-test connection here!</li>
+                    </ol>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs font-semibold text-emerald-800 flex items-center gap-2">
+                  <Check className="w-4 h-4 shrink-0 text-emerald-600" />
+                  <span>{testStatus.message}</span>
+                </div>
+              )}
             </div>
           )}
         </form>

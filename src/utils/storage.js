@@ -619,27 +619,231 @@ export const sendToGoogleSheet = async (payload) => {
   }
 };
 
+// Extract spreadsheet ID from Google Sheet or Apps Script URL
+export const extractSpreadsheetId = (url) => {
+  if (!url) return null;
+  const match = String(url).match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  return match ? match[1] : null;
+};
+
+// JSONP Fetcher to bypass browser CORS preflight restrictions
+export const fetchJSONP = (url, timeoutMs = 12000) => {
+  return new Promise((resolve, reject) => {
+    if (typeof document === 'undefined') {
+      return reject(new Error('JSONP is only supported in browser environments.'));
+    }
+    const callbackName = 'google_sheet_cb_' + Math.random().toString(36).substring(2, 9);
+    const script = document.createElement('script');
+    const sep = url.includes('?') ? '&' : '?';
+    script.src = `${url}${sep}callback=${callbackName}&_t=${Date.now()}`;
+    script.async = true;
+
+    let timer = null;
+    const cleanup = () => {
+      if (timer) clearTimeout(timer);
+      delete window[callbackName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    };
+
+    timer = setTimeout(() => {
+      cleanup();
+      reject(new Error('Connection timed out. In Apps Script, check that "Who has access" is set to "Anyone".'));
+    }, timeoutMs);
+
+    window[callbackName] = (data) => {
+      cleanup();
+      resolve(data);
+    };
+
+    script.onerror = () => {
+      cleanup();
+      reject(new Error('Browser blocked script loading. Make sure "Who has access" is set to "Anyone".'));
+    };
+
+    document.head.appendChild(script);
+  });
+};
+
+// Google Visualization API (gviz/tq) parsing helpers for direct spreadsheet reading
+const parseGvizResponse = (gvizText) => {
+  const start = gvizText.indexOf('{');
+  const end = gvizText.lastIndexOf('}');
+  if (start === -1 || end === -1) {
+    throw new Error('Invalid response from Google Sheets.');
+  }
+  return JSON.parse(gvizText.substring(start, end + 1));
+};
+
+const parseGvizResults = (gvizData) => {
+  if (!gvizData || !gvizData.table || !Array.isArray(gvizData.table.rows)) return [];
+  const rows = gvizData.table.rows;
+  const results = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const cells = rows[i]?.c;
+    if (!cells || !cells[0] || cells[0].v == null) continue;
+    const code = String(cells[0].v).trim();
+    if (!code || code.toLowerCase() === 'candidate code') continue;
+
+    const answersObj = {};
+    for (let q = 1; q <= 20; q++) {
+      const cell = cells[10 + q];
+      if (cell && cell.v !== null && cell.v !== undefined && cell.v !== '') {
+        answersObj[q] = Number(cell.v);
+      }
+    }
+
+    results.push({
+      candidateCode: code,
+      participantId: code,
+      name: String(cells[1]?.v || ''),
+      place: String(cells[2]?.v || ''),
+      institution: String(cells[2]?.v || ''),
+      mobileNumber: String(cells[3]?.v || ''),
+      phone: String(cells[3]?.v || ''),
+      finalScore: Number(cells[4]?.v || 0),
+      correctAnswers: Number(cells[5]?.v || 0),
+      totalQuestions: 20,
+      bonusMarks: Number(cells[6]?.v || 0),
+      completionTime: String(cells[7]?.v || ''),
+      completionSeconds: Number(cells[8]?.v || 0),
+      submissionType: String(cells[9]?.v || 'Manual Submission'),
+      submittedAt: String(cells[10]?.v || ''),
+      status: 'submitted',
+      answers: answersObj,
+    });
+  }
+  return results;
+};
+
+const parseGvizParticipants = (gvizText) => {
+  try {
+    const gvizData = parseGvizResponse(gvizText);
+    if (!gvizData || !gvizData.table || !Array.isArray(gvizData.table.rows)) return [];
+    const rows = gvizData.table.rows;
+    const participants = [];
+    for (let i = 0; i < rows.length; i++) {
+      const cells = rows[i]?.c;
+      if (!cells || !cells[0] || cells[0].v == null) continue;
+      const code = String(cells[0].v).trim();
+      if (!code || code.toLowerCase() === 'candidate code') continue;
+      participants.push({
+        candidateCode: code,
+        participantId: code,
+        name: String(cells[1]?.v || ''),
+        place: String(cells[2]?.v || ''),
+        institution: String(cells[2]?.v || ''),
+        mobileNumber: String(cells[3]?.v || ''),
+        phone: String(cells[3]?.v || ''),
+        email: String(cells[4]?.v || ''),
+        registeredAt: String(cells[5]?.v || ''),
+        status: String(cells[6]?.v || 'registered'),
+      });
+    }
+    return participants;
+  } catch {
+    return [];
+  }
+};
+
+export const fetchGoogleSheetDirect = async (spreadsheetId) => {
+  const resResults = await fetch(
+    `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:json&sheet=Results`
+  );
+  if (!resResults.ok) {
+    throw new Error(
+      `Access denied (status ${resResults.status}). Please ensure your Google Sheet is shared with "Anyone with the link can view".`
+    );
+  }
+  const textResults = await resResults.text();
+  const jsonResults = parseGvizResponse(textResults);
+  const results = parseGvizResults(jsonResults);
+
+  let participants = [];
+  try {
+    const resPart = await fetch(
+      `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:json&sheet=Participants`
+    );
+    if (resPart.ok) {
+      const textPart = await resPart.text();
+      participants = parseGvizParticipants(textPart);
+    }
+  } catch {
+    // Participants tab is optional
+  }
+
+  return { results, participants };
+};
+
 // Test Google Sheet connectivity
 export const testGoogleSheetConnection = async () => {
   const scriptUrl = getGoogleSheetUrl();
-  if (!scriptUrl) return { success: false, error: 'Google Sheet Web App URL is not set.' };
+  if (!scriptUrl) return { success: false, error: 'Google Sheet URL is not set.' };
 
+  const spreadsheetId = extractSpreadsheetId(scriptUrl);
+
+  // PATH A: Google Spreadsheet Direct URL
+  if (spreadsheetId && !scriptUrl.includes('script.google.com')) {
+    try {
+      const data = await fetchGoogleSheetDirect(spreadsheetId);
+      return {
+        success: true,
+        source: 'gviz',
+        resultsCount: data.results.length,
+        participantsCount: data.participants.length,
+      };
+    } catch (err) {
+      return {
+        success: false,
+        error: `Could not read Google Sheet: ${err.message}. Share the sheet with "Anyone with the link can view".`,
+      };
+    }
+  }
+
+  // PATH B: Google Apps Script Web App
   try {
-    const response = await fetch(scriptUrl, {
-      method: 'GET',
-      redirect: 'follow',
-    });
+    let cloudData = null;
+    let fetchError = null;
 
-    if (!response.ok) {
-      throw new Error(`Server returned HTTP ${response.status}`);
+    try {
+      const response = await fetch(scriptUrl, { method: 'GET', redirect: 'follow' });
+      if (response.ok) {
+        cloudData = await response.json();
+      } else {
+        fetchError = `HTTP ${response.status}`;
+      }
+    } catch (e) {
+      fetchError = e.message;
     }
 
-    const json = await response.json();
+    if (!cloudData) {
+      try {
+        cloudData = await fetchJSONP(scriptUrl, 8000);
+      } catch (jsonpErr) {
+        console.warn('JSONP test fallback failed:', jsonpErr);
+      }
+    }
+
+    if (!cloudData || (cloudData.status !== 'success' && !cloudData.results && !cloudData.participants)) {
+      const isDev = scriptUrl.endsWith('/dev') || scriptUrl.includes('/dev?');
+      const isEditor = scriptUrl.includes('home/projects') || scriptUrl.includes('/edit');
+
+      let tip = 'In Apps Script, click Deploy > Manage deployments > Edit, and ensure "Who has access" is set to "Anyone" (NOT "Only myself").';
+      if (isDev) tip = 'This is a /dev test URL. Please deploy a New Deployment as "Web app" and use the /exec URL.';
+      if (isEditor) tip = 'This is the script editor link. In Apps Script, click Deploy > New deployment > Web app, and copy the URL ending in /exec.';
+
+      return {
+        success: false,
+        error: `Google connection blocked (${fetchError || 'Failed to fetch'}). ${tip}`,
+      };
+    }
+
     return {
       success: true,
-      status: json.status,
-      resultsCount: Array.isArray(json.results) ? json.results.length : 0,
-      participantsCount: Array.isArray(json.participants) ? json.participants.length : 0,
+      source: 'apps_script',
+      status: cloudData.status,
+      resultsCount: Array.isArray(cloudData.results) ? cloudData.results.length : 0,
+      participantsCount: Array.isArray(cloudData.participants) ? cloudData.participants.length : 0,
     };
   } catch (err) {
     return { success: false, error: err.message };
@@ -649,81 +853,126 @@ export const testGoogleSheetConnection = async () => {
 // Fetch cloud submissions from Google Sheet Web App and merge into local admin data
 export const syncFromGoogleSheet = async () => {
   const scriptUrl = getGoogleSheetUrl();
-  if (!scriptUrl) return { success: false, error: 'Google Sheet Web App URL is not set. Go to Settings to configure it.' };
+  if (!scriptUrl) return { success: false, error: 'Google Sheet URL is not set. Go to Settings to configure it.' };
 
-  try {
-    const response = await fetch(scriptUrl, {
-      method: 'GET',
-      redirect: 'follow',
-    });
+  const spreadsheetId = extractSpreadsheetId(scriptUrl);
 
-    if (!response.ok) {
-      throw new Error(`Google Sheets responded with HTTP status ${response.status}`);
-    }
+  let rawResults = [];
+  let rawParticipants = [];
+  let sourceUsed = 'apps_script';
 
-    const cloudData = await response.json();
-    if (!cloudData || (cloudData.status !== 'success' && !cloudData.results && !cloudData.participants)) {
-      throw new Error(cloudData?.error || 'Invalid response format from Google Sheet Web App');
-    }
-
-    // 1. Merge Participants
-    const localParticipants = getAllParticipants();
-    const pMap = new Map();
-    localParticipants.forEach((p) => {
-      const code = (p.candidateCode || p.participantId || '').trim().toUpperCase();
-      if (code) pMap.set(code, p);
-    });
-
-    if (Array.isArray(cloudData.participants)) {
-      cloudData.participants.forEach((p) => {
-        const code = (p.candidateCode || p.participantId || '').trim().toUpperCase();
-        if (code) {
-          const prev = pMap.get(code) || {};
-          pMap.set(code, { ...prev, ...p });
-        }
-      });
-    }
-    const finalParticipants = Array.from(pMap.values());
-    safeSet(STORAGE_KEYS.ALL_PARTICIPANTS, finalParticipants);
-
-    // 2. Merge Results
-    const localResults = getAllResults();
-    const rMap = new Map();
-    localResults.forEach((r) => {
-      const code = (r.candidateCode || r.participantId || '').trim().toUpperCase();
-      if (code) rMap.set(code, r);
-    });
-
-    if (Array.isArray(cloudData.results)) {
-      cloudData.results.forEach((r) => {
-        const code = (r.candidateCode || r.participantId || '').trim().toUpperCase();
-        if (code) {
-          const prev = rMap.get(code) || {};
-          rMap.set(code, { ...prev, ...r });
-        }
-      });
-    }
-    const finalResults = Array.from(rMap.values());
-    safeSet(STORAGE_KEYS.ALL_RESULTS, finalResults);
-
-    // Record last sync timestamp
-    const nowIso = new Date().toISOString();
+  // PATH A: If Google Spreadsheet link provided, read via gviz
+  if (spreadsheetId && !scriptUrl.includes('script.google.com')) {
     try {
-      localStorage.setItem(STORAGE_KEYS.LAST_SYNC_TIME, nowIso);
-    } catch {
-      // ignore
+      const direct = await fetchGoogleSheetDirect(spreadsheetId);
+      rawResults = direct.results;
+      rawParticipants = direct.participants;
+      sourceUsed = 'gviz';
+    } catch (err) {
+      return {
+        success: false,
+        error: `Direct Google Sheet read failed: ${err.message}. Share your sheet as "Anyone with the link can view".`,
+      };
+    }
+  } else {
+    // PATH B: Google Apps Script Web App
+    let cloudData = null;
+    let fetchError = null;
+
+    try {
+      const response = await fetch(scriptUrl, {
+        method: 'GET',
+        redirect: 'follow',
+      });
+      if (response.ok) {
+        cloudData = await response.json();
+      } else {
+        fetchError = `HTTP ${response.status}`;
+      }
+    } catch (err) {
+      fetchError = err.message;
     }
 
-    return {
-      success: true,
-      participantsCount: finalParticipants.length,
-      resultsCount: finalResults.length,
-      lastSyncedAt: nowIso,
-    };
-  } catch (err) {
-    console.error('Error syncing from Google Sheet:', err);
-    return { success: false, error: err.message };
+    // Try JSONP fallback if fetch was blocked by CORS
+    if (!cloudData) {
+      try {
+        cloudData = await fetchJSONP(scriptUrl, 10000);
+      } catch (jsonpErr) {
+        console.warn('JSONP fallback failed:', jsonpErr.message);
+      }
+    }
+
+    if (!cloudData || (cloudData.status !== 'success' && !cloudData.results && !cloudData.participants)) {
+      const isDev = scriptUrl.endsWith('/dev') || scriptUrl.includes('/dev?');
+      const isEditor = scriptUrl.includes('home/projects') || scriptUrl.includes('/edit');
+
+      let tip = 'In Apps Script, click Deploy > Manage deployments > Edit, and ensure "Who has access" is set to "Anyone" (not "Only myself").';
+      if (isDev) tip = 'This is a /dev test URL. In Apps Script, click Deploy > New deployment > Web app and copy the /exec URL.';
+      if (isEditor) tip = 'This is the script editor link. In Apps Script, click Deploy > New deployment > Web app and copy the /exec URL.';
+
+      return {
+        success: false,
+        error: `Google connection blocked (${fetchError || 'Failed to fetch'}). ${tip}`,
+      };
+    }
+
+    rawResults = Array.isArray(cloudData.results) ? cloudData.results : [];
+    rawParticipants = Array.isArray(cloudData.participants) ? cloudData.participants : [];
   }
+
+  // 1. Merge Participants
+  const localParticipants = getAllParticipants();
+  const pMap = new Map();
+  localParticipants.forEach((p) => {
+    const code = (p.candidateCode || p.participantId || '').trim().toUpperCase();
+    if (code) pMap.set(code, p);
+  });
+
+  rawParticipants.forEach((p) => {
+    const code = (p.candidateCode || p.participantId || '').trim().toUpperCase();
+    if (code) {
+      const prev = pMap.get(code) || {};
+      pMap.set(code, { ...prev, ...p });
+    }
+  });
+
+  const finalParticipants = Array.from(pMap.values());
+  safeSet(STORAGE_KEYS.ALL_PARTICIPANTS, finalParticipants);
+
+  // 2. Merge Results
+  const localResults = getAllResults();
+  const rMap = new Map();
+  localResults.forEach((r) => {
+    const code = (r.candidateCode || r.participantId || '').trim().toUpperCase();
+    if (code) rMap.set(code, r);
+  });
+
+  rawResults.forEach((r) => {
+    const code = (r.candidateCode || r.participantId || '').trim().toUpperCase();
+    if (code) {
+      const prev = rMap.get(code) || {};
+      rMap.set(code, { ...prev, ...r });
+    }
+  });
+
+  const finalResults = Array.from(rMap.values());
+  safeSet(STORAGE_KEYS.ALL_RESULTS, finalResults);
+
+  // Record last sync timestamp
+  const nowIso = new Date().toISOString();
+  try {
+    localStorage.setItem(STORAGE_KEYS.LAST_SYNC_TIME, nowIso);
+  } catch {
+    // ignore
+  }
+
+  return {
+    success: true,
+    source: sourceUsed,
+    participantsCount: finalParticipants.length,
+    resultsCount: finalResults.length,
+    lastSyncedAt: nowIso,
+  };
 };
 
 export const GOOGLE_APPS_SCRIPT_TEMPLATE = `// ==========================================
@@ -914,16 +1163,30 @@ function doGet(e) {
       }
     }
 
-    return ContentService.createTextOutput(JSON.stringify({
+    var payload = {
       status: 'success',
       results: results,
       participants: participants
-    })).setMimeType(ContentService.MimeType.JSON);
+    };
+
+    var output = JSON.stringify(payload);
+    var callback = e && e.parameter && e.parameter.callback;
+    if (callback) {
+      return ContentService.createTextOutput(callback + '(' + output + ')')
+        .setMimeType(ContentService.MimeType.JAVASCRIPT);
+    }
+
+    return ContentService.createTextOutput(output)
+      .setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({
-      status: 'error',
-      error: err.toString()
-    })).setMimeType(ContentService.MimeType.JSON);
+    var errPayload = { status: 'error', error: err.toString() };
+    var callback = e && e.parameter && e.parameter.callback;
+    if (callback) {
+      return ContentService.createTextOutput(callback + '(' + JSON.stringify(errPayload) + ')')
+        .setMimeType(ContentService.MimeType.JAVASCRIPT);
+    }
+    return ContentService.createTextOutput(JSON.stringify(errPayload))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 }
 `;
