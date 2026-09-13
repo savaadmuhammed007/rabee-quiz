@@ -505,7 +505,7 @@ export default function AdminSettings({
           Participants who complete the 20 questions faster earn extra bonus marks added to their correct answer base score.
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {speedRules.map((rule, idx) => (
             <div key={idx} className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
               <div>

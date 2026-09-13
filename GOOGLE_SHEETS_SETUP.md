@@ -53,7 +53,7 @@ Once deployed, **every participant phone opening the quiz automatically submits 
 4. **Mobile Number**: Formatted as plain text
 5. **Final Score**: Correct answers + Speed bonus
 6. **Correct Answers**: Count out of 20
-7. **Speed Bonus**: Bonus marks (+10, +7, +5, +2)
+7. **Speed Bonus**: Bonus marks (≤ 2m: +10, ≤ 3m: +9, ≤ 4m: +8, down to ≤ 10m: +2)
 8. **Completion Time**: Duration in `MM:SS` format
 9. **Completion Seconds**: Elapsed seconds
 10. **Submission Type**: Manual or Time Limit

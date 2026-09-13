@@ -16,10 +16,15 @@ export const QUIZ_CONFIG = {
   durationSeconds: 600, // exactly 10 minutes (600 seconds)
   warningThresholdSeconds: 120, // visual alert when < 2 minutes remain
   defaultSpeedRules: [
-    { label: "Completed under 5 minutes (< 300s)", maxSeconds: 300, bonus: 10 },
-    { label: "Completed between 5 to 7 minutes (300s - 420s)", maxSeconds: 420, bonus: 7 },
-    { label: "Completed between 7 to 9 minutes (420s - 540s)", maxSeconds: 540, bonus: 5 },
-    { label: "Completed between 9 to 10 minutes (540s - 600s)", maxSeconds: 600, bonus: 2 },
+    { label: "Under 2 minutes (≤ 120s)", maxSeconds: 120, bonus: 10 },
+    { label: "Under 3 minutes (121s - 180s)", maxSeconds: 180, bonus: 9 },
+    { label: "Under 4 minutes (181s - 240s)", maxSeconds: 240, bonus: 8 },
+    { label: "Under 5 minutes (241s - 300s)", maxSeconds: 300, bonus: 7 },
+    { label: "Under 6 minutes (301s - 360s)", maxSeconds: 360, bonus: 6 },
+    { label: "Under 7 minutes (361s - 420s)", maxSeconds: 420, bonus: 5 },
+    { label: "Under 8 minutes (421s - 480s)", maxSeconds: 480, bonus: 4 },
+    { label: "Under 9 minutes (481s - 540s)", maxSeconds: 540, bonus: 3 },
+    { label: "Under 10 minutes (541s - 600s)", maxSeconds: 600, bonus: 2 },
   ],
 };
 

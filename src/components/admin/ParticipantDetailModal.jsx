@@ -113,11 +113,9 @@ export default function ParticipantDetailModal({
 
   // Speed Bonus Tier Descriptor
   const getSpeedTierNote = (secs, bonus) => {
-    if (bonus === 5) return 'Tier 1 (≤ 3m): Ultra Fast Speed (+5)';
-    if (bonus === 3) return 'Tier 2 (≤ 5m): High Speed (+3)';
-    if (bonus === 2) return 'Tier 3 (≤ 7m): Swift Submission (+2)';
-    if (bonus === 1) return 'Tier 4 (≤ 10m): Within Time (+1)';
-    return 'Exceeded bonus cutoff (0)';
+    if (!bonus || bonus <= 0) return 'Standard Completion (+0 speed bonus)';
+    const mins = Math.max(1, Math.ceil((secs || 0) / 60));
+    return `Speed Bonus: Completed in ≤ ${mins} mins (+${bonus} pts)`;
   };
 
   return (

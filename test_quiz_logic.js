@@ -24,26 +24,46 @@ const calculateSpeedBonus = (durationSeconds) => {
   return 0;
 };
 
-// Under 5 minutes (< 300s) -> +10
-console.assert(calculateSpeedBonus(250) === 10, 'Under 5 min failed');
-console.assert(calculateSpeedBonus(300) === 10, 'Exactly 5 min failed');
+// Under 2 minutes (≤ 120s) -> +10
+console.assert(calculateSpeedBonus(100) === 10, '100s failed');
+console.assert(calculateSpeedBonus(120) === 10, '120s failed');
 
-// 5-7 minutes (301s - 420s) -> +7
-console.assert(calculateSpeedBonus(301) === 7, '301s failed');
-console.assert(calculateSpeedBonus(420) === 7, '420s failed');
+// Under 3 minutes (121s - 180s) -> +9
+console.assert(calculateSpeedBonus(121) === 9, '121s failed');
+console.assert(calculateSpeedBonus(180) === 9, '180s failed');
 
-// 7-9 minutes (421s - 540s) -> +5
-console.assert(calculateSpeedBonus(421) === 5, '421s failed');
-console.assert(calculateSpeedBonus(540) === 5, '540s failed');
+// Under 4 minutes (181s - 240s) -> +8
+console.assert(calculateSpeedBonus(181) === 8, '181s failed');
+console.assert(calculateSpeedBonus(240) === 8, '240s failed');
 
-// 9-10 minutes (541s - 600s) -> +2
+// Under 5 minutes (241s - 300s) -> +7
+console.assert(calculateSpeedBonus(241) === 7, '241s failed');
+console.assert(calculateSpeedBonus(300) === 7, '300s failed');
+
+// Under 6 minutes (301s - 360s) -> +6
+console.assert(calculateSpeedBonus(301) === 6, '301s failed');
+console.assert(calculateSpeedBonus(360) === 6, '360s failed');
+
+// Under 7 minutes (361s - 420s) -> +5
+console.assert(calculateSpeedBonus(361) === 5, '361s failed');
+console.assert(calculateSpeedBonus(420) === 5, '420s failed');
+
+// Under 8 minutes (421s - 480s) -> +4
+console.assert(calculateSpeedBonus(421) === 4, '421s failed');
+console.assert(calculateSpeedBonus(480) === 4, '480s failed');
+
+// Under 9 minutes (481s - 540s) -> +3
+console.assert(calculateSpeedBonus(481) === 3, '481s failed');
+console.assert(calculateSpeedBonus(540) === 3, '540s failed');
+
+// Under 10 minutes (541s - 600s) -> +2
 console.assert(calculateSpeedBonus(541) === 2, '541s failed');
 console.assert(calculateSpeedBonus(600) === 2, '600s failed');
 
 // Expired (> 600s) -> 0
 console.assert(calculateSpeedBonus(601) === 0, 'Expired bonus should be 0');
 
-console.log('✓ All speed bonus tiers correctly verified (+10, +7, +5, +2, 0).');
+console.log('✓ All 9 speed bonus tiers correctly verified (≤2m: +10, 3m: +9, 4m: +8, 5m: +7, 6m: +6, 7m: +5, 8m: +4, 9m: +3, 10m: +2).');
 
 console.log('\n--- 3. Score Evaluation Verification ---');
 const answers = {};
@@ -61,7 +81,7 @@ questions.forEach((q) => {
   }
 });
 const baseScore = correctCount * 1;
-const bonusMarks = calculateSpeedBonus(280); // 4m 40s -> +10 bonus
+const bonusMarks = calculateSpeedBonus(110); // 1m 50s (< 2m) -> +10 bonus
 const finalScore = baseScore + bonusMarks;
 
 console.assert(correctCount === 18, `Expected 18 correct, got ${correctCount}`);

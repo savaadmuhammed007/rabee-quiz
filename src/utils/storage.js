@@ -143,7 +143,11 @@ export const saveParticipant = (participantData) => {
 // --- SPEED RULES UTILITIES ---
 
 export const getSpeedRules = () => {
-  return safeParse(STORAGE_KEYS.SPEED_RULES, QUIZ_CONFIG.defaultSpeedRules);
+  const saved = safeParse(STORAGE_KEYS.SPEED_RULES, null);
+  if (saved && Array.isArray(saved) && saved.length === QUIZ_CONFIG.defaultSpeedRules.length) {
+    return saved;
+  }
+  return QUIZ_CONFIG.defaultSpeedRules;
 };
 
 export const saveSpeedRules = (rules) => {
@@ -1436,8 +1440,8 @@ export const seedSampleData = () => {
       registeredAt: new Date(Date.now() - 3600000 * 5).toISOString(),
       startedAt: new Date(Date.now() - 3600000 * 5 + 120000).toISOString(),
       submittedAt: new Date(Date.now() - 3600000 * 5 + 120000 + 265000).toISOString(),
-      completionSeconds: 265, // 4m 25s (< 5m => +10 bonus)
-      completionTime: '04:25',
+      completionSeconds: 110, // 1m 50s (< 2m => +10 bonus)
+      completionTime: '01:50',
       correctAnswers: 19,
       totalQuestions: 20,
       baseScore: 19,
@@ -1454,14 +1458,14 @@ export const seedSampleData = () => {
       institution: 'Al-Madinah Islamic Institute',
       registeredAt: new Date(Date.now() - 3600000 * 4).toISOString(),
       startedAt: new Date(Date.now() - 3600000 * 4 + 60000).toISOString(),
-      submittedAt: new Date(Date.now() - 3600000 * 4 + 60000 + 380000).toISOString(),
-      completionSeconds: 380, // 6m 20s (5-7m => +7 bonus)
-      completionTime: '06:20',
+      submittedAt: new Date(Date.now() - 3600000 * 4 + 60000 + 165000).toISOString(),
+      completionSeconds: 165, // 2m 45s (< 3m => +9 bonus)
+      completionTime: '02:45',
       correctAnswers: 20,
       totalQuestions: 20,
       baseScore: 20,
-      bonusMarks: 7,
-      finalScore: 27,
+      bonusMarks: 9,
+      finalScore: 29,
       submissionType: 'Manual Submission',
       status: 'submitted',
     },
@@ -1473,14 +1477,14 @@ export const seedSampleData = () => {
       institution: 'An-Noor Higher Secondary',
       registeredAt: new Date(Date.now() - 3600000 * 3).toISOString(),
       startedAt: new Date(Date.now() - 3600000 * 3 + 180000).toISOString(),
-      submittedAt: new Date(Date.now() - 3600000 * 3 + 180000 + 490000).toISOString(),
-      completionSeconds: 490, // 8m 10s (7-9m => +5 bonus)
-      completionTime: '08:10',
+      submittedAt: new Date(Date.now() - 3600000 * 3 + 180000 + 230000).toISOString(),
+      completionSeconds: 230, // 3m 50s (< 4m => +8 bonus)
+      completionTime: '03:50',
       correctAnswers: 17,
       totalQuestions: 20,
       baseScore: 17,
-      bonusMarks: 5,
-      finalScore: 22,
+      bonusMarks: 8,
+      finalScore: 25,
       submissionType: 'Manual Submission',
       status: 'submitted',
     },
@@ -1492,14 +1496,14 @@ export const seedSampleData = () => {
       institution: 'Crescent College of Arts & Science',
       registeredAt: new Date(Date.now() - 3600000 * 2).toISOString(),
       startedAt: new Date(Date.now() - 3600000 * 2 + 100000).toISOString(),
-      submittedAt: new Date(Date.now() - 3600000 * 2 + 100000 + 565000).toISOString(),
-      completionSeconds: 565, // 9m 25s (9-10m => +2 bonus)
-      completionTime: '09:25',
+      submittedAt: new Date(Date.now() - 3600000 * 2 + 100000 + 285000).toISOString(),
+      completionSeconds: 285, // 4m 45s (< 5m => +7 bonus)
+      completionTime: '04:45',
       correctAnswers: 16,
       totalQuestions: 20,
       baseScore: 16,
-      bonusMarks: 2,
-      finalScore: 18,
+      bonusMarks: 7,
+      finalScore: 23,
       submissionType: 'Manual Submission',
       status: 'submitted',
     },
@@ -1511,15 +1515,15 @@ export const seedSampleData = () => {
       institution: 'Islamic Research Foundation',
       registeredAt: new Date(Date.now() - 3600000 * 1.5).toISOString(),
       startedAt: new Date(Date.now() - 3600000 * 1.5 + 45000).toISOString(),
-      submittedAt: new Date(Date.now() - 3600000 * 1.5 + 45000 + 600000).toISOString(),
-      completionSeconds: 600, // 10m (auto submitted timeout => 0 bonus)
-      completionTime: '10:00',
+      submittedAt: new Date(Date.now() - 3600000 * 1.5 + 45000 + 580000).toISOString(),
+      completionSeconds: 580, // 9m 40s (< 10m => +2 bonus)
+      completionTime: '09:40',
       correctAnswers: 14,
       totalQuestions: 20,
       baseScore: 14,
-      bonusMarks: 0,
-      finalScore: 14,
-      submissionType: 'Auto-submitted (Time Limit)',
+      bonusMarks: 2,
+      finalScore: 16,
+      submissionType: 'Manual Submission',
       status: 'submitted',
     },
     {
