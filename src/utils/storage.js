@@ -17,6 +17,8 @@ export const STORAGE_KEYS = {
   SPEED_RULES: 'rabee_speed_rules',
   ADMIN_AUTH: 'rabee_admin_auth',
   ADMIN_PASSWORD: 'rabee_admin_password',
+  GOOGLE_SHEET_URL: 'rabee_google_sheet_url',
+  LAST_SYNC_TIME: 'rabee_last_sync_time',
 };
 
 const DEFAULT_ADMIN_PASSWORD = 'rabee2026';

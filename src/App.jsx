@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Lock } from 'lucide-react';
 import Header from './components/Header';
 import Welcome from './components/Welcome';
 import Registration from './components/Registration';
@@ -52,16 +53,16 @@ export default function App() {
     return { p, qState, qResult, isCompleted, isAuthed };
   }, []);
 
-  // Helper to check if current browser URL points to the separate admin page
+  // Resilient helper to check if current browser URL points to admin page on any host
   const isAdminURL = () => {
     const path = window.location.pathname.toLowerCase();
     const hash = window.location.hash.toLowerCase();
     const search = window.location.search.toLowerCase();
     return (
-      path === '/admin' ||
-      path.startsWith('/admin/') ||
-      hash === '#admin' ||
-      hash === '#/admin' ||
+      path.endsWith('/admin') ||
+      path.endsWith('/admin/') ||
+      path.includes('/admin') ||
+      hash.includes('admin') ||
       search.includes('admin')
     );
   };
@@ -146,15 +147,9 @@ export default function App() {
   };
 
   // Admin Navigation Handlers (Accessible via /admin or #admin)
+  // Admin Navigation Handlers (Accessible via /#admin, ?admin, or /admin)
   const handleOpenAdmin = () => {
-    try {
-      if (!isAdminURL()) {
-        window.history.pushState(null, '', '/admin');
-      }
-    } catch {
-      window.location.hash = '#admin';
-    }
-
+    window.location.hash = '#admin';
     if (checkAdminAuth()) {
       setIsAdminAuthenticated(true);
       setCurrentView('admin_portal');
@@ -166,24 +161,29 @@ export default function App() {
   const handleAdminLoginSuccess = () => {
     setIsAdminAuthenticated(true);
     setCurrentView('admin_portal');
-    try {
-      if (!isAdminURL()) {
-        window.history.pushState(null, '', '/admin');
-      }
-    } catch {
+    if (!window.location.hash.includes('admin')) {
       window.location.hash = '#admin';
     }
   };
 
   const handleExitAdmin = () => {
     setIsAdminAuthenticated(false);
-    // Reset browser URL bar back to home page
-    try {
-      if (window.location.pathname.startsWith('/admin') || window.location.hash.includes('admin')) {
-        window.history.pushState(null, '', '/');
+    // Clean up hash without losing base pathname (crucial for GitHub Pages /rabee-quiz/)
+    if (window.location.hash.includes('admin')) {
+      try {
+        const cleanURL = window.location.pathname + window.location.search;
+        window.history.replaceState(null, '', cleanURL);
+      } catch {
+        window.location.hash = '';
       }
-    } catch {
-      window.location.hash = '';
+    }
+    if (window.location.pathname.includes('admin')) {
+      try {
+        const basePath = window.location.pathname.replace(/\/admin\/?$/i, '') || '/';
+        window.history.replaceState(null, '', basePath);
+      } catch {
+        // ignore
+      }
     }
 
     // Return to appropriate user view
@@ -305,6 +305,15 @@ export default function App() {
           <span className="font-malayalam font-semibold text-slate-600">ഉർവതൽ വുസ്ഖ്വ • മെഗാ ക്വിസ് മത്സരം</span>
           <div className="flex items-center gap-2 text-[11px] text-slate-400">
             <span>100% In-Browser Quiz</span>
+            <button
+              type="button"
+              onClick={handleOpenAdmin}
+              className="p-1 rounded text-slate-300 hover:text-slate-500 transition-colors cursor-pointer"
+              title="Admin Portal Gate"
+              aria-label="Admin Portal Gate"
+            >
+              <Lock className="w-3 h-3" />
+            </button>
           </div>
         </div>
       </footer>

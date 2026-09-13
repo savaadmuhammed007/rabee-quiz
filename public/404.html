@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>ഉർവതൽ വുസ്ഖ്വ | Redirecting...</title>
+    <script>
+      // GitHub Pages SPA redirect handler
+      var path = window.location.pathname.toLowerCase();
+      var hash = window.location.hash;
+      var search = window.location.search;
+      var segments = window.location.pathname.split('/').filter(Boolean);
+      
+      // Determine repository subpath if on GitHub Pages (e.g. /rabee-quiz/)
+      var repo = segments.length > 0 ? segments[0] : '';
+      var targetBase = repo && !repo.includes('.') && repo !== 'admin' ? '/' + repo : '';
+
+      if (path.includes('admin') || hash.includes('admin') || search.includes('admin')) {
+        window.location.replace(targetBase + '/#admin');
+      } else {
+        window.location.replace(targetBase + '/');
+      }
+    </script>
+  </head>
+  <body>
+    <p style="font-family: sans-serif; text-align: center; margin-top: 50px; color: #047857;">
+      Redirecting to ഉർവതൽ വുസ്ഖ്വ ക്വിസ്...
+    </p>
+  </body>
+</html>

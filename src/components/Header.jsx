@@ -2,6 +2,25 @@ import React from 'react';
 import { Sparkles, ShieldCheck } from 'lucide-react';
 
 export default function Header({ currentView, onNavigateAdmin, onNavigateHome, isAdmin }) {
+  const [logoClicks, setLogoClicks] = React.useState(0);
+  const clickTimerRef = React.useRef(null);
+
+  const handleLogoTap = (e) => {
+    e.stopPropagation();
+    const count = logoClicks + 1;
+    setLogoClicks(count);
+    if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+
+    if (count >= 3) {
+      setLogoClicks(0);
+      onNavigateAdmin?.();
+    } else {
+      clickTimerRef.current = setTimeout(() => {
+        setLogoClicks(0);
+      }, 1500);
+    }
+  };
+
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-emerald-100/80 shadow-xs transition-all pt-[env(safe-area-inset-top,0px)]">
       <div className="max-w-5xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2">
@@ -14,7 +33,9 @@ export default function Header({ currentView, onNavigateAdmin, onNavigateHome, i
           <img
             src="/logo.png"
             alt="Ma'din Logo"
-            className="h-8 sm:h-10 w-auto object-contain group-hover:scale-105 transition-transform shrink-0"
+            onClick={handleLogoTap}
+            className="h-8 sm:h-10 w-auto object-contain group-hover:scale-105 active:scale-95 transition-transform shrink-0 cursor-pointer"
+            title="Ma'din Al Islamiyya Campus"
           />
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 sm:gap-2">
