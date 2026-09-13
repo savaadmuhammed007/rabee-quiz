@@ -142,5 +142,24 @@ console.assert(isCandidateAuthorized('MAICQ99') === false, 'Invalid code authori
 console.assert(isCandidateAuthorized('MAICQ05') === true, 'MAICQ05 authorization should be true');
 console.log('✓ Candidate lookup, case normalization, trimming, and invalid code rejection verified.');
 
+console.log('\n--- 6. 5:10 PM Display & 5:11 PM Auto-Submit Deadline Verification ---');
+console.assert(QUIZ_CONFIG.displayedEndTime === '5:10 PM', 'Expected displayedEndTime to be 5:10 PM');
+console.assert(QUIZ_CONFIG.hardEndTime === '5:11 PM', 'Expected hardEndTime to be 5:11 PM');
+console.assert(typeof QUIZ_CONFIG.hardDeadlineTimestamp === 'number', 'hardDeadlineTimestamp should be number');
+console.assert(typeof QUIZ_CONFIG.displayDeadlineTimestamp === 'number', 'displayDeadlineTimestamp should be number');
+
+const { getRemainingTime, isHardDeadlinePassed, isDisplayDeadlinePassed } = await import('./src/utils/storage.js');
+
+// Test timer remaining before deadline
+const now = Date.now();
+const timeUntilHardDeadline = Math.floor((QUIZ_CONFIG.hardDeadlineTimestamp - now) / 1000);
+const remainingCurrent = getRemainingTime(Date.now()); // started just now
+console.assert(remainingCurrent <= 600, 'Remaining should not exceed standard 600s');
+console.assert(remainingCurrent <= Math.max(0, timeUntilHardDeadline), 'Remaining should not exceed time until 5:11 PM');
+
+console.log(`✓ Deadline configuration verified: Display=${QUIZ_CONFIG.displayedEndTime}, Hard Cutoff=${QUIZ_CONFIG.hardEndTime}`);
+console.log(`✓ Timer clamp active: remaining seconds ${remainingCurrent}s properly bound by 5:11 PM deadline (${timeUntilHardDeadline}s away).`);
+
 console.log('\n=== ALL AUTOMATED TESTS PASSED SUCCESSFULLY! ===');
+
 

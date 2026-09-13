@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Hash, User, MapPin, CheckCircle2, ArrowRight, Shield, AlertCircle, Sparkles } from 'lucide-react';
+import { Hash, User, MapPin, CheckCircle2, ArrowRight, Shield, AlertCircle, Sparkles, Clock } from 'lucide-react';
 import { findCandidateByCode } from '../data/candidates';
-import { saveParticipant } from '../utils/storage';
+import { saveParticipant, isHardDeadlinePassed } from '../utils/storage';
 
 export default function Registration({ onCompleteRegistration, initialData }) {
   const [candidateCode, setCandidateCode] = useState(
@@ -54,6 +54,11 @@ export default function Registration({ onCompleteRegistration, initialData }) {
     e.preventDefault();
     setHasInteracted(true);
 
+    if (isHardDeadlinePassed()) {
+      setError('Registration closed. The quiz entry period ended at 5:10 PM.');
+      return;
+    }
+
     const match = findCandidateByCode(candidateCode);
     if (!match) {
       setError('Please enter a valid candidate code from the official list (MAICQ01 to MAICQ35).');
@@ -94,7 +99,7 @@ export default function Registration({ onCompleteRegistration, initialData }) {
       </div>
 
       <div className="bg-white rounded-2xl p-4 sm:p-8 shadow-sm border border-emerald-100">
-        <div className="mb-5 sm:mb-6">
+        <div className="mb-4 sm:mb-5">
           <div className="flex items-center justify-between gap-2">
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900 font-serif">Candidate Verification</h1>
             <div className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-right shrink-0">
@@ -104,6 +109,12 @@ export default function Registration({ onCompleteRegistration, initialData }) {
           <p className="text-[11px] sm:text-xs text-slate-500 mt-1">
             Enter your official candidate code to automatically verify your details and begin the quiz.
           </p>
+        </div>
+
+        {/* Deadline Notice Banner */}
+        <div className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-50/90 border border-amber-200/80 text-amber-950 text-xs font-semibold mb-4 shadow-2xs">
+          <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+          <span>Entries close at 5:10 PM today • All unsubmitted tests auto-submit at 5:11 PM</span>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -210,14 +221,22 @@ export default function Registration({ onCompleteRegistration, initialData }) {
           <div className="pt-2">
             <button
               type="submit"
-              disabled={!matchedCandidate}
+              disabled={!matchedCandidate || isHardDeadlinePassed()}
               className={`w-full min-h-[50px] py-3.5 px-5 rounded-xl font-bold text-sm sm:text-base transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md ${
-                matchedCandidate
+                isHardDeadlinePassed()
+                  ? 'text-slate-400 bg-slate-200 cursor-not-allowed shadow-none'
+                  : matchedCandidate
                   ? 'text-white bg-emerald-700 hover:bg-emerald-800 active:scale-[0.99] shadow-emerald-800/25 ring-2 ring-emerald-600/30'
                   : 'text-slate-400 bg-slate-200 cursor-not-allowed shadow-none'
               }`}
             >
-              <span>{matchedCandidate ? 'Confirm & Proceed to Instructions' : 'Enter Valid Code to Proceed'}</span>
+              <span>
+                {isHardDeadlinePassed()
+                  ? 'Registration Closed (Ended at 5:10 PM)'
+                  : matchedCandidate
+                  ? 'Confirm & Proceed to Instructions'
+                  : 'Enter Valid Code to Proceed'}
+              </span>
               <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>

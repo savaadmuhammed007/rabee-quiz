@@ -1,6 +1,6 @@
-import React from 'react';
 import { BookOpen, Clock, Zap, Award, ArrowRight, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { QUIZ_CONFIG } from '../data/questions';
+import { isHardDeadlinePassed } from '../utils/storage';
 
 export default function Welcome({ onStartRegistration, onResumeQuiz, isCompleted, hasInProgress, participant }) {
   return (
@@ -16,8 +16,14 @@ export default function Welcome({ onStartRegistration, onResumeQuiz, isCompleted
 
       {/* Decorative Arabic Greeting Banner */}
       <div className="text-center mb-5 sm:mb-6">
-        <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1 rounded-full bg-emerald-100/90 text-emerald-800 text-[11px] sm:text-xs font-semibold tracking-wide border border-emerald-200 shadow-xs mb-2.5 sm:mb-3">
+        <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1 rounded-full bg-emerald-100/90 text-emerald-800 text-[11px] sm:text-xs font-semibold tracking-wide border border-emerald-200 shadow-xs mb-2 sm:mb-2.5">
           <span>✨ Rabi' al-Awwal 1447 AH Special</span>
+        </div>
+        <div>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-900 border border-amber-200 text-[11px] sm:text-xs font-bold mb-2.5 shadow-2xs">
+            <Clock className="w-3.5 h-3.5 text-amber-600" />
+            <span>ക്വിസ് അവസാന സമയം: ഇന്ന് 5:10 PM (Entries close at 5:10 PM today)</span>
+          </div>
         </div>
         <h1 className="text-2xl xs:text-3xl sm:text-4xl font-extrabold text-emerald-950 font-malayalam mb-1.5 sm:mb-2">
           {QUIZ_CONFIG.title}
@@ -96,7 +102,17 @@ export default function Welcome({ onStartRegistration, onResumeQuiz, isCompleted
             <div className="text-xs text-amber-900">
               <p className="font-bold">Active Quiz in Progress!</p>
               <p className="mt-0.5 text-amber-700">
-                Your 10-minute timer is currently counting down. Resume now to complete your answers before time expires.
+                Your timer is currently counting down. Resume now to complete your answers before time expires.
+              </p>
+            </div>
+          </div>
+        ) : isHardDeadlinePassed() ? (
+          <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 mb-4 flex items-start gap-3">
+            <Clock className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+            <div className="text-xs text-rose-900">
+              <p className="font-bold font-malayalam">രജിസ്ട്രേഷൻ അവസാനിച്ചു (Registration Closed)</p>
+              <p className="mt-0.5 text-rose-700">
+                ക്വിസ് മത്സരത്തിനുള്ള സമയം ഇന്ന് 5:10 PM-ന് അവസാനിച്ചു. പുതിയ രജിസ്ട്രേഷൻ അനുവദനീയമല്ല.
               </p>
             </div>
           </div>
@@ -119,6 +135,13 @@ export default function Welcome({ onStartRegistration, onResumeQuiz, isCompleted
             <span>Resume Quiz (Timer Running)</span>
             <ArrowRight className="w-4 h-4" />
           </button>
+        ) : isHardDeadlinePassed() ? (
+          <button
+            disabled
+            className="w-full py-3.5 px-5 rounded-xl font-bold text-base text-slate-400 bg-slate-200 cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            <span>Registration Closed (Ended at 5:10 PM)</span>
+          </button>
         ) : (
           <button
             onClick={onStartRegistration}
@@ -133,8 +156,8 @@ export default function Welcome({ onStartRegistration, onResumeQuiz, isCompleted
       {/* Note on Participation Rules */}
       <div className="text-center text-xs text-slate-400 space-y-1">
         <p>• Registration restricted to official candidates (MAICQ01 – MAICQ35)</p>
+        <p>• Entries close at 5:10 PM today • All unsubmitted tests auto-submit at 5:11 PM</p>
         <p>• Only 1 submission allowed per browser device</p>
-        <p>• Answers and scores are recorded for administrative evaluation only</p>
       </div>
     </div>
   );

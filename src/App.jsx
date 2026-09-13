@@ -24,6 +24,7 @@ import {
   setGoogleSheetUrl,
   resetCurrentAttempt,
   checkAndEnforceQuizSession,
+  isHardDeadlinePassed,
   STORAGE_KEYS,
 } from './utils/storage';
 
@@ -143,9 +144,27 @@ export default function App() {
     window.addEventListener('popstate', handleRouteSync);
     window.addEventListener('hashchange', handleRouteSync);
 
+    // Global deadline monitoring interval:
+    // If the clock reaches 5:11 PM and there is an unsubmitted active quiz, auto-submit immediately!
+    const deadlineInterval = setInterval(() => {
+      const isCompleted = isQuizCompleted();
+      const qState = getQuizState();
+      if (!isCompleted && qState?.startedAt) {
+        const remaining = getRemainingTime(qState.startedAt);
+        if (remaining <= 0) {
+          const finalResult = submitQuizAttempt('timeout');
+          setQuizResult(finalResult);
+          setAllResults(getAllResults());
+          setAllParticipants(getAllParticipants());
+          setCurrentView('submitted');
+        }
+      }
+    }, 1000);
+
     return () => {
       window.removeEventListener('popstate', handleRouteSync);
       window.removeEventListener('hashchange', handleRouteSync);
+      clearInterval(deadlineInterval);
     };
   }, [refreshStorageData]);
 
@@ -158,6 +177,10 @@ export default function App() {
 
   // Handle Start Quiz click (10-minute timer begins here)
   const handleStartQuiz = () => {
+    if (isHardDeadlinePassed()) {
+      alert('The quiz entry period has ended at 5:10 PM. No new attempts can be started.');
+      return;
+    }
     const newSession = startQuizSession();
     setQuizState(newSession);
     setCurrentView('quiz');

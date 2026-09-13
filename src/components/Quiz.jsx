@@ -105,17 +105,22 @@ export default function Quiz({ quizState, onSubmitQuiz, onAutoSubmit }) {
           </div>
 
           {/* Resilient Countdown Timer */}
-          <div
-            className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl border font-mono font-bold text-xs sm:text-sm transition-colors ${
-              isUrgent
-                ? 'bg-rose-50 text-rose-700 border-rose-300 animate-pulse'
-                : 'bg-emerald-50 text-emerald-900 border-emerald-200'
-            }`}
-          >
-            <Clock className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isUrgent ? 'text-rose-600' : 'text-emerald-700'}`} />
-            <span>{formatSecondsToMS(remainingSeconds)}</span>
-            <span className="text-[10px] font-sans font-medium uppercase text-slate-500 hidden sm:inline">
-              left
+          <div className="flex flex-col items-end">
+            <div
+              className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl border font-mono font-bold text-xs sm:text-sm transition-colors ${
+                isUrgent
+                  ? 'bg-rose-50 text-rose-700 border-rose-300 animate-pulse'
+                  : 'bg-emerald-50 text-emerald-900 border-emerald-200'
+              }`}
+            >
+              <Clock className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isUrgent ? 'text-rose-600' : 'text-emerald-700'}`} />
+              <span>{formatSecondsToMS(remainingSeconds)}</span>
+              <span className="text-[10px] font-sans font-medium uppercase text-slate-500 hidden sm:inline">
+                left
+              </span>
+            </div>
+            <span className="text-[9px] sm:text-[10px] text-slate-400 font-medium mt-0.5">
+              Closes 5:10 PM • Auto-submits 5:11 PM
             </span>
           </div>
         </div>
@@ -132,7 +137,7 @@ export default function Quiz({ quizState, onSubmitQuiz, onAutoSubmit }) {
         {isUrgent && (
           <div className="mt-2 text-center text-[11px] sm:text-xs font-semibold text-rose-600 flex items-center justify-center gap-1">
             <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-            <span>Less than 2 minutes remaining! Review and submit your answers.</span>
+            <span>Less than 2 minutes remaining! Quiz will auto-submit when timer expires or at 5:11 PM.</span>
           </div>
         )}
       </div>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Clock, BookOpen, Award, Wifi, Play, User, Hash, MapPin, Phone } from 'lucide-react';
+import { isHardDeadlinePassed } from '../utils/storage';
 
 export default function Instructions({ participant, onStartQuiz }) {
   const candidateCode = participant?.candidateCode || participant?.participantId;
@@ -54,12 +55,15 @@ export default function Instructions({ participant, onStartQuiz }) {
         {/* 4 Official Malayalam Instruction Rules */}
         <div className="space-y-2.5 sm:space-y-3 mb-5 sm:mb-6 text-slate-700">
           {/* Rule 1 */}
-          <div className="flex items-start gap-2.5 sm:gap-3 p-3 sm:p-3.5 rounded-xl bg-slate-50 border border-slate-100">
-            <div className="p-1.5 sm:p-2 rounded-lg bg-amber-100 text-amber-800 shrink-0 mt-0.5">
+          <div className="flex items-start gap-2.5 sm:gap-3 p-3 sm:p-3.5 rounded-xl bg-amber-50 border border-amber-200">
+            <div className="p-1.5 sm:p-2 rounded-lg bg-amber-100 text-amber-900 shrink-0 mt-0.5">
               <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
             <div className="text-xs sm:text-sm font-semibold text-slate-900 leading-relaxed font-malayalam">
-              5:00 മുതൽ 5:10 വരെയായിരിക്കും മത്സരം.
+              <span>5:00 മുതൽ 5:10 വരെയായിരിക്കും മത്സരം.</span>
+              <span className="block text-[11px] sm:text-xs text-amber-800 font-normal mt-0.5">
+                സമയം പൂർത്തിയാകുമ്പോഴോ 5:11-ലോ നിങ്ങൾ അതുവരെ നൽകിയ ഉത്തരങ്ങൾ സിസ്റ്റം സ്വമേധയാ Auto-Submit ചെയ്യുന്നതാണ്.
+              </span>
             </div>
           </div>
 
@@ -95,16 +99,27 @@ export default function Instructions({ participant, onStartQuiz }) {
         </div>
 
         {/* Start Button */}
-        <button
-          onClick={onStartQuiz}
-          className="w-full min-h-[50px] py-3.5 px-5 sm:px-6 rounded-xl font-bold text-sm sm:text-base text-white bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-700 hover:from-emerald-700 hover:to-teal-800 active:scale-[0.99] transition-all shadow-lg shadow-emerald-800/25 flex items-center justify-center gap-2.5 cursor-pointer font-malayalam"
-        >
-          <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-white shrink-0" />
-          <span>ക്വിസ് ആരംഭിക്കുക (Start Quiz)</span>
-        </button>
+        {isHardDeadlinePassed() ? (
+          <button
+            disabled
+            className="w-full min-h-[50px] py-3.5 px-5 sm:px-6 rounded-xl font-bold text-sm sm:text-base text-slate-400 bg-slate-200 cursor-not-allowed flex items-center justify-center gap-2.5 font-malayalam"
+          >
+            <span>മത്സര സമയം അവസാനിച്ചു (Quiz Ended at 5:10 PM)</span>
+          </button>
+        ) : (
+          <button
+            onClick={onStartQuiz}
+            className="w-full min-h-[50px] py-3.5 px-5 sm:px-6 rounded-xl font-bold text-sm sm:text-base text-white bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-700 hover:from-emerald-700 hover:to-teal-800 active:scale-[0.99] transition-all shadow-lg shadow-emerald-800/25 flex items-center justify-center gap-2.5 cursor-pointer font-malayalam"
+          >
+            <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-white shrink-0" />
+            <span>ക്വിസ് ആരംഭിക്കുക (Start Quiz)</span>
+          </button>
+        )}
 
         <p className="text-[10px] sm:text-[11px] text-center text-slate-400 mt-2.5 sm:mt-3 font-malayalam">
-          "Start Quiz" ക്ലിക്ക് ചെയ്യുന്നതോടെ 10 മിനിറ്റ് കൗണ്ട്ഡൗൺ ആരംഭിക്കുന്നതാണ്.
+          {isHardDeadlinePassed()
+            ? 'ക്വിസ് എൻട്രി സമയം അവസാനിച്ചിരിക്കുന്നു.'
+            : '"Start Quiz" ക്ലിക്ക് ചെയ്യുന്നതോടെ കൗണ്ട്ഡൗൺ ആരംഭിക്കുന്നതാണ്.'}
         </p>
       </div>
     </div>

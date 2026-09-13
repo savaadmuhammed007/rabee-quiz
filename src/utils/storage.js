@@ -226,14 +226,41 @@ export const startQuizSession = () => {
 };
 
 /**
- * Calculates remaining time in seconds against 600s total duration.
- * Survives page refreshes and reload because it derives from Date.now() - startedAt.
+ * Calculates remaining time in seconds against 600s total duration
+ * and clamps to the absolute hard deadline (5:11 PM today).
+ * Survives page refreshes and reloads because it derives from Date.now() - startedAt.
  */
 export const getRemainingTime = (startedAt) => {
+  const now = Date.now();
+
+  // 1. Check absolute deadline (5:11 PM today)
+  if (QUIZ_CONFIG.hardDeadlineTimestamp) {
+    const secondsUntilHardDeadline = Math.floor((QUIZ_CONFIG.hardDeadlineTimestamp - now) / 1000);
+    if (secondsUntilHardDeadline <= 0) return 0;
+
+    // 2. Check 10-minute quiz duration
+    if (!startedAt) {
+      return Math.min(QUIZ_CONFIG.durationSeconds, secondsUntilHardDeadline);
+    }
+    const elapsedSeconds = Math.floor((now - startedAt) / 1000);
+    const remainingFromStart = QUIZ_CONFIG.durationSeconds - elapsedSeconds;
+
+    return Math.max(0, Math.min(remainingFromStart, secondsUntilHardDeadline));
+  }
+
+  // Fallback if no deadline configured
   if (!startedAt) return QUIZ_CONFIG.durationSeconds;
-  const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000);
+  const elapsedSeconds = Math.floor((now - startedAt) / 1000);
   const remaining = QUIZ_CONFIG.durationSeconds - elapsedSeconds;
   return Math.max(0, remaining);
+};
+
+export const isHardDeadlinePassed = () => {
+  return QUIZ_CONFIG.hardDeadlineTimestamp ? Date.now() >= QUIZ_CONFIG.hardDeadlineTimestamp : false;
+};
+
+export const isDisplayDeadlinePassed = () => {
+  return QUIZ_CONFIG.displayDeadlineTimestamp ? Date.now() >= QUIZ_CONFIG.displayDeadlineTimestamp : false;
 };
 
 // --- SCORING & EVALUATION ---

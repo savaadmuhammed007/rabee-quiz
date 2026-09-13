@@ -13,8 +13,13 @@ export const QUIZ_CONFIG = {
   subtitle: "മെഗാ ക്വിസ് മത്സരം",
   totalQuestions: 20,
   durationMinutes: 10,
-  durationSeconds: 600, // exactly 10 minutes (600 seconds)
+  durationSeconds: 600, // standard maximum attempt duration: 10 minutes (600 seconds)
   warningThresholdSeconds: 120, // visual alert when < 2 minutes remain
+  // Absolute entry and auto-submission time limit for today (September 13, 2026):
+  displayedEndTime: "5:10 PM", // Displayed closing time
+  hardEndTime: "5:11 PM", // Hard auto-submit cutoff
+  displayDeadlineTimestamp: new Date('2026-09-13T17:10:00+05:30').getTime(),
+  hardDeadlineTimestamp: new Date('2026-09-13T17:11:00+05:30').getTime(),
   defaultSpeedRules: [
     { label: "Under 2 minutes (≤ 120s)", maxSeconds: 120, bonus: 10 },
     { label: "Under 3 minutes (121s - 180s)", maxSeconds: 180, bonus: 9 },
