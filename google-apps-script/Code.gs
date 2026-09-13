@@ -221,6 +221,58 @@ function doPost(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
+    // 3. RESET / CLEAR ALL DATA
+    if (action === "clear_all" || action === "reset") {
+      var cleared = { results: 0, participants: 0 };
+      var rSheet = ss.getSheetByName(RESULTS_SHEET_NAME);
+      if (rSheet && rSheet.getLastRow() > 1) {
+        cleared.results = rSheet.getLastRow() - 1;
+        rSheet.deleteRows(2, rSheet.getLastRow() - 1);
+      }
+      var pSheet = ss.getSheetByName(PARTICIPANTS_SHEET_NAME);
+      if (pSheet && pSheet.getLastRow() > 1) {
+        cleared.participants = pSheet.getLastRow() - 1;
+        pSheet.deleteRows(2, pSheet.getLastRow() - 1);
+      }
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        action: "clear_all",
+        cleared: cleared,
+        message: "All participant registrations and quiz results have been cleared successfully"
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 4. DELETE A SINGLE PARTICIPANT
+    if (action === "delete") {
+      var codeToDelete = String(data.candidateCode || data.participantId || "").trim().toUpperCase();
+      if (codeToDelete) {
+        var resSheet = ss.getSheetByName(RESULTS_SHEET_NAME);
+        if (resSheet && resSheet.getLastRow() > 1) {
+          var rVals = resSheet.getDataRange().getValues();
+          for (var ri = rVals.length - 1; ri >= 1; ri--) {
+            if (String(rVals[ri][0]).trim().toUpperCase() === codeToDelete) {
+              resSheet.deleteRow(ri + 1);
+            }
+          }
+        }
+        var partSheet = ss.getSheetByName(PARTICIPANTS_SHEET_NAME);
+        if (partSheet && partSheet.getLastRow() > 1) {
+          var pVals = partSheet.getDataRange().getValues();
+          for (var pi = pVals.length - 1; pi >= 1; pi--) {
+            if (String(pVals[pi][0]).trim().toUpperCase() === codeToDelete) {
+              partSheet.deleteRow(pi + 1);
+            }
+          }
+        }
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "success",
+          action: "delete",
+          candidateCode: codeToDelete,
+          message: "Candidate " + codeToDelete + " deleted successfully"
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
     return ContentService.createTextOutput(JSON.stringify({
       status: "error",
       message: "Unknown action"
@@ -239,6 +291,24 @@ function doPost(e) {
 function doGet(e) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+    // Check if GET action is requested (e.g. ?action=reset)
+    if (e && e.parameter && (e.parameter.action === "reset" || e.parameter.action === "clear_all")) {
+      var rSheet = ss.getSheetByName(RESULTS_SHEET_NAME);
+      if (rSheet && rSheet.getLastRow() > 1) {
+        rSheet.deleteRows(2, rSheet.getLastRow() - 1);
+      }
+      var pSheet = ss.getSheetByName(PARTICIPANTS_SHEET_NAME);
+      if (pSheet && pSheet.getLastRow() > 1) {
+        pSheet.deleteRows(2, pSheet.getLastRow() - 1);
+      }
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        action: "reset",
+        message: "All sheets cleared via GET action"
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     const results = [];
     const participants = [];
 

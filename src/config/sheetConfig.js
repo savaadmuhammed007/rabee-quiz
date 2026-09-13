@@ -6,3 +6,6 @@
 
 export const DEFAULT_GOOGLE_SHEET_URL =
   'https://script.google.com/macros/s/AKfycbzUaoBM2ikygwGf9RB19KX5kopNw3PH3XbYts91xjcCNGJkApJykhGfqMEprbYjkokH/exec';
+
+// Active Quiz Session Version. Bumping this automatically resets any device that previously submitted!
+export const CURRENT_QUIZ_SESSION_VERSION = 'rabee_quiz_2026_round1';

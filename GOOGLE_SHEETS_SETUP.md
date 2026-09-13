@@ -68,3 +68,17 @@ Once deployed, **every participant phone opening the quiz automatically submits 
 5. **Email**
 6. **Registered At**
 7. **Status**
+
+---
+
+## 🔄 How to Reset All Data & Allow Devices to Retake the Quiz:
+
+1. **Automatic Device Reset (Zero Action Needed)**:
+   - When you push/deploy this update, all participant devices automatically reset on next visit because the Quiz Session has been bumped to `round1`.
+2. **From the "Already Submitted" Screen**:
+   - Any device showing "You Have Already Submitted" now has a button: **`Reset This Device (പുതിയ എൻട്രി നൽകുക)`**. Tapping it instantly clears that device.
+3. **From Admin Settings**:
+   - Click **`Reset All Quiz Data Everywhere`** under Danger Zone.
+   - Or click **`Copy Retake / Reset Quiz Link`** (`/?reset=1`) to share via WhatsApp.
+4. **In Google Sheets**:
+   - To remove past test entries (e.g. `TEST-0001`), select rows 2 and below in both the **`Results`** and **`Participants`** sheets, right-click, and choose **Delete rows**.

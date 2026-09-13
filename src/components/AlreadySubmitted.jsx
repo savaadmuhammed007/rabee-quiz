@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Lock, ShieldCheck, User, MapPin, Calendar, Phone, Hash, ListChecks, ChevronDown, ChevronUp } from 'lucide-react';
+import { Lock, ShieldCheck, User, MapPin, Calendar, Phone, Hash, ListChecks, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
 import { formatDateTime } from '../utils/storage';
 import SubmittedAnswersList from './common/SubmittedAnswersList';
 
-export default function AlreadySubmitted({ participant, result }) {
+export default function AlreadySubmitted({ participant, result, onResetDevice }) {
   const [showAnswers, setShowAnswers] = useState(false);
 
   const candidateCode = participant?.candidateCode || result?.candidateCode || participant?.participantId || result?.participantId || 'RABEE-0001';
@@ -126,6 +126,30 @@ export default function AlreadySubmitted({ participant, result }) {
           </div>
         )}
       </div>
+
+      {/* Retake / Reset Option */}
+      {onResetDevice && (
+        <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200 text-center mb-6">
+          <p className="text-xs text-slate-700 font-bold mb-1 font-malayalam">
+            ഈ ഉപകരണത്തിലെ പഴയ വിവരങ്ങൾ മായ്ച്ച് പുതിയ എൻട്രി നൽകണോ?
+          </p>
+          <p className="text-[11px] text-slate-400 mb-3">
+            If you need to reset this device to take the quiz again or submit fresh details, click below:
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm('നിങ്ങളുടെ ഉപകരണത്തിലെ മുൻപത്തെ സബ്മിഷൻ വിവരങ്ങൾ നീക്കം ചെയ്ത് പുതിയതായി തുടങ്ങണോ?\n\nAre you sure you want to reset this device and start a fresh quiz entry?')) {
+                onResetDevice();
+              }
+            }}
+            className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
+          >
+            <RotateCcw className="w-4 h-4" />
+            <span>Reset This Device (പുതിയ എൻട്രി നൽകുക)</span>
+          </button>
+        </div>
+      )}
 
       <div className="p-4 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-500 text-center">
         If you believe this is an error or need assistance, please contact your Rabee Quiz coordinator.

@@ -22,6 +22,9 @@ import {
   getAllResults,
   checkAdminAuth,
   setGoogleSheetUrl,
+  resetCurrentAttempt,
+  checkAndEnforceQuizSession,
+  STORAGE_KEYS,
 } from './utils/storage';
 
 export default function App() {
@@ -69,9 +72,29 @@ export default function App() {
   };
 
   useEffect(() => {
-    // Check if URL query contains sheet configuration (e.g. ?sheet=https://script.google.com/...)
+    // 1. Check if URL requests immediate device reset (?reset=1, ?clear=1, ?retake=1)
     try {
       const params = new URLSearchParams(window.location.search);
+      const wantsReset = params.has('reset') || params.has('clear') || params.has('retake');
+
+      if (wantsReset) {
+        resetCurrentAttempt();
+        localStorage.removeItem(STORAGE_KEYS.ALL_PARTICIPANTS);
+        localStorage.removeItem(STORAGE_KEYS.ALL_RESULTS);
+        try {
+          const cleanUrl = new URL(window.location.href);
+          cleanUrl.searchParams.delete('reset');
+          cleanUrl.searchParams.delete('clear');
+          cleanUrl.searchParams.delete('retake');
+          window.history.replaceState(null, '', cleanUrl.pathname + (cleanUrl.search ? cleanUrl.search : '') + cleanUrl.hash);
+        } catch {}
+      } else {
+        // 2. Enforce active quiz session version across all devices
+        // (Automatically resets devices that took tests in older sessions)
+        checkAndEnforceQuizSession();
+      }
+
+      // 3. Check if URL query contains sheet configuration (e.g. ?sheet=https://script.google.com/...)
       const sheetParam = params.get('sheet') || params.get('sheetUrl');
       if (sheetParam && sheetParam.startsWith('http')) {
         setGoogleSheetUrl(sheetParam);
@@ -290,6 +313,11 @@ export default function App() {
           <AlreadySubmitted
             participant={participant}
             result={quizResult}
+            onResetDevice={() => {
+              resetCurrentAttempt();
+              refreshStorageData();
+              setCurrentView('welcome');
+            }}
           />
         )}
 

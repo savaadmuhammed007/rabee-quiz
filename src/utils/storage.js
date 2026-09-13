@@ -6,7 +6,7 @@
  */
 
 import { QUIZ_CONFIG, questions } from '../data/questions.js';
-import { DEFAULT_GOOGLE_SHEET_URL } from '../config/sheetConfig.js';
+import { DEFAULT_GOOGLE_SHEET_URL, CURRENT_QUIZ_SESSION_VERSION } from '../config/sheetConfig.js';
 
 export const STORAGE_KEYS = {
   PARTICIPANT: 'rabee_participant',
@@ -20,6 +20,7 @@ export const STORAGE_KEYS = {
   ADMIN_PASSWORD: 'rabee_admin_password',
   GOOGLE_SHEET_URL: 'rabee_google_sheet_url',
   LAST_SYNC_TIME: 'rabee_last_sync_time',
+  QUIZ_SESSION_ID: 'rabee_quiz_session_id',
 };
 
 const DEFAULT_ADMIN_PASSWORD = 'rabee2026';
@@ -523,6 +524,115 @@ export const resetCurrentAttempt = () => {
   }
 };
 
+/**
+ * Enforces active quiz session version across all devices.
+ * If the device has an old session or no session record (e.g. from previous tests),
+ * this automatically wipes the local completion lock, participant, and quiz state.
+ */
+export const checkAndEnforceQuizSession = (targetSession = CURRENT_QUIZ_SESSION_VERSION) => {
+  try {
+    const activeVersion = String(targetSession || CURRENT_QUIZ_SESSION_VERSION).trim();
+    const storedVersion = localStorage.getItem(STORAGE_KEYS.QUIZ_SESSION_ID);
+
+    if (!storedVersion || storedVersion !== activeVersion) {
+      // Device is on older session or hasn't recorded new session -> wipe previous attempt
+      resetCurrentAttempt();
+      localStorage.removeItem(STORAGE_KEYS.ALL_PARTICIPANTS);
+      localStorage.removeItem(STORAGE_KEYS.ALL_RESULTS);
+      localStorage.setItem(STORAGE_KEYS.QUIZ_SESSION_ID, activeVersion);
+      return true; // was reset
+    }
+  } catch (err) {
+    console.error('Error enforcing quiz session:', err);
+  }
+  return false;
+};
+
+/**
+ * Bumps the global session ID (used by admin to force reset across all devices).
+ */
+export const bumpQuizSession = () => {
+  try {
+    const newSession = 'rabee_session_' + Date.now();
+    resetCurrentAttempt();
+    localStorage.removeItem(STORAGE_KEYS.ALL_PARTICIPANTS);
+    localStorage.removeItem(STORAGE_KEYS.ALL_RESULTS);
+    localStorage.setItem(STORAGE_KEYS.QUIZ_SESSION_ID, newSession);
+    return newSession;
+  } catch (err) {
+    console.error('Error bumping quiz session:', err);
+    return null;
+  }
+};
+
+// Send a delete request for a single candidate to Google Sheet
+export const deleteCandidateFromGoogleSheet = async (candidateCode, customUrl = null) => {
+  const scriptUrl = (customUrl || getGoogleSheetUrl() || '').trim();
+  if (!scriptUrl || !scriptUrl.includes('/exec') || !candidateCode) {
+    return { success: false };
+  }
+
+  const payload = {
+    action: 'delete',
+    candidateCode: String(candidateCode).trim().toUpperCase(),
+  };
+
+  try {
+    const jsonBody = JSON.stringify(payload);
+    const fetchPromise = fetch(scriptUrl, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: jsonBody,
+    });
+
+    if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+      try {
+        const blob = new Blob([jsonBody], { type: 'text/plain;charset=utf-8' });
+        navigator.sendBeacon(scriptUrl, blob);
+      } catch {}
+    }
+
+    await fetchPromise;
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// Send a clear_all request to the Google Sheet Web App
+export const resetCloudGoogleSheet = async (customUrl = null) => {
+  const scriptUrl = (customUrl || getGoogleSheetUrl() || '').trim();
+  if (!scriptUrl || !scriptUrl.includes('/exec')) {
+    return { success: false, reason: 'Requires Google Apps Script Web App URL ending in /exec' };
+  }
+
+  const payload = { action: 'clear_all', timestamp: new Date().toISOString() };
+
+  try {
+    const jsonBody = JSON.stringify(payload);
+    const fetchPromise = fetch(scriptUrl, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: jsonBody,
+    });
+
+    if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+      try {
+        const blob = new Blob([jsonBody], { type: 'text/plain;charset=utf-8' });
+        navigator.sendBeacon(scriptUrl, blob);
+      } catch {}
+    }
+
+    await fetchPromise;
+    return { success: true };
+  } catch (err) {
+    console.warn('resetCloudGoogleSheet error:', err);
+    return { success: false, error: err.message };
+  }
+};
+
 // Delete a single participant and their quiz results permanently
 export const deleteParticipant = (candidateCodeOrId) => {
   if (!candidateCodeOrId) return false;
@@ -554,6 +664,9 @@ export const deleteParticipant = (candidateCodeOrId) => {
       localStorage.removeItem(STORAGE_KEYS.QUIZ_RESULT);
       localStorage.removeItem(STORAGE_KEYS.QUIZ_COMPLETED);
     }
+
+    // 4. Also trigger cloud deletion from Google Sheet if connected
+    deleteCandidateFromGoogleSheet(target).catch(() => {});
 
     return true;
   } catch (err) {
@@ -1136,6 +1249,43 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
+    // 3. Reset / Clear All Rows
+    if (action === 'clear_all' || action === 'reset') {
+      var rSheet = ss.getSheetByName('Results');
+      if (rSheet && rSheet.getLastRow() > 1) {
+        rSheet.deleteRows(2, rSheet.getLastRow() - 1);
+      }
+      var pSheet = ss.getSheetByName('Participants');
+      if (pSheet && pSheet.getLastRow() > 1) {
+        pSheet.deleteRows(2, pSheet.getLastRow() - 1);
+      }
+      return ContentService.createTextOutput(JSON.stringify({ status: 'success', action: 'clear_all', message: 'All rows cleared' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 4. Delete Single Participant
+    if (action === 'delete') {
+      var codeToDel = String(data.candidateCode || data.participantId || '').trim().toUpperCase();
+      if (codeToDel) {
+        var rS = ss.getSheetByName('Results');
+        if (rS && rS.getLastRow() > 1) {
+          var rV = rS.getDataRange().getValues();
+          for (var ri = rV.length - 1; ri >= 1; ri--) {
+            if (String(rV[ri][0]).trim().toUpperCase() === codeToDel) rS.deleteRow(ri + 1);
+          }
+        }
+        var pS = ss.getSheetByName('Participants');
+        if (pS && pS.getLastRow() > 1) {
+          var pV = pS.getDataRange().getValues();
+          for (var pi = pV.length - 1; pi >= 1; pi--) {
+            if (String(pV[pi][0]).trim().toUpperCase() === codeToDel) pS.deleteRow(pi + 1);
+          }
+        }
+        return ContentService.createTextOutput(JSON.stringify({ status: 'success', action: 'delete', candidateCode: codeToDel }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
     return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Unknown action' }))
       .setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
@@ -1149,6 +1299,20 @@ function doPost(e) {
 function doGet(e) {
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+    // Check if GET action is requested (e.g. ?action=reset)
+    if (e && e.parameter && (e.parameter.action === 'reset' || e.parameter.action === 'clear_all')) {
+      var rSheet = ss.getSheetByName('Results');
+      if (rSheet && rSheet.getLastRow() > 1) {
+        rSheet.deleteRows(2, rSheet.getLastRow() - 1);
+      }
+      var pSheet = ss.getSheetByName('Participants');
+      if (pSheet && pSheet.getLastRow() > 1) {
+        pSheet.deleteRows(2, pSheet.getLastRow() - 1);
+      }
+      return ContentService.createTextOutput(JSON.stringify({ status: 'success', action: 'reset', message: 'All sheets cleared via GET' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     var results = [];
     var participants = [];
 

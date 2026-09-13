@@ -24,6 +24,8 @@ import {
   seedSampleData,
   resetCurrentAttempt,
   clearAllLocalData,
+  bumpQuizSession,
+  resetCloudGoogleSheet,
   getGoogleSheetUrl,
   setGoogleSheetUrl,
   testGoogleSheetConnection,
@@ -43,6 +45,8 @@ export default function AdminSettings({
   const [newPasswordInput, setNewPasswordInput] = useState('');
   const [statusMessage, setStatusMessage] = useState(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isClearingAll, setIsClearingAll] = useState(false);
+  const [copiedResetLink, setCopiedResetLink] = useState(false);
 
   // Google Sheets state
   const [sheetUrlInput, setSheetUrlInput] = useState(() => getGoogleSheetUrl());
@@ -152,12 +156,55 @@ export default function AdminSettings({
     showNotification('Current quiz attempt cleared! You can now take the quiz again on this browser.');
   };
 
-  const handleConfirmClearAll = () => {
-    clearAllLocalData();
-    setShowClearConfirm(false);
-    onDataRefreshed();
-    onResetCurrentAttempt();
-    showNotification('All local quiz data has been completely erased.', 'warning');
+  const getResetQuizLink = () => {
+    try {
+      const url = new URL(window.location.href);
+      const basePath = url.origin + url.pathname.replace(/\/admin\/?$/i, '') || '/';
+      return `${basePath}?reset=1`;
+    } catch {
+      return `${window.location.origin}/?reset=1`;
+    }
+  };
+
+  const handleCopyResetLink = () => {
+    const link = getResetQuizLink();
+    try {
+      navigator.clipboard.writeText(link);
+      setCopiedResetLink(true);
+      showNotification('Retake / Reset link copied! Anyone visiting this link will have their device reset.');
+      setTimeout(() => setCopiedResetLink(false), 2500);
+    } catch {
+      showNotification('Failed to copy to clipboard', 'error');
+    }
+  };
+
+  const handleConfirmClearAll = async () => {
+    setIsClearingAll(true);
+    try {
+      // 1. Wipe local browser quiz records
+      clearAllLocalData();
+
+      // 2. Bump session ID so any other connected devices reset automatically
+      bumpQuizSession();
+
+      // 3. Dispatch cloud reset to Google Sheet
+      const sheetUrl = getGoogleSheetUrl();
+      if (sheetUrl && sheetUrl.includes('/exec')) {
+        await resetCloudGoogleSheet(sheetUrl);
+      }
+
+      setShowClearConfirm(false);
+      onDataRefreshed();
+      onResetCurrentAttempt();
+      showNotification('All quiz data has been erased (Local storage wiped + Google Sheet reset + Device sessions cleared).', 'warning');
+    } catch (err) {
+      setShowClearConfirm(false);
+      onDataRefreshed();
+      onResetCurrentAttempt();
+      showNotification('Cleared local data, but cloud reset returned: ' + err.message, 'warning');
+    } finally {
+      setIsClearingAll(false);
+    }
   };
 
   const isConfigured = Boolean(savedSheetUrl);
@@ -549,22 +596,34 @@ export default function AdminSettings({
         </form>
       </div>
 
-      {/* 5. Danger Zone: Clear All Local Data */}
+      {/* 5. Danger Zone: Reset All Quiz Data (Cloud & Devices) */}
       <div className="bg-rose-50/50 rounded-2xl p-6 border border-rose-200">
         <div className="flex items-center gap-2 text-rose-800 font-bold text-sm mb-1">
           <AlertTriangle className="w-4 h-4" />
-          <span>Danger Zone: Clear All Data</span>
+          <span>Danger Zone: Reset All Quiz Data (Cloud & All Devices)</span>
         </div>
         <p className="text-xs text-rose-700 mb-4">
-          Permanently delete all registered participants, quiz attempts, and results from this browser's localStorage.
+          Permanently erase all registered participants and submitted results from this browser, wipe rows in Google Sheets, and bump the session ID so any participant devices that previously submitted can immediately start fresh.
         </p>
 
-        <button
-          onClick={() => setShowClearConfirm(true)}
-          className="py-2 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
-        >
-          Clear All Local Data
-        </button>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            onClick={() => setShowClearConfirm(true)}
+            className="py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer flex items-center gap-2"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Reset All Quiz Data Everywhere</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleCopyResetLink}
+            className="py-2.5 px-4 rounded-xl bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 font-bold text-xs shadow-xs transition-colors cursor-pointer flex items-center gap-2"
+          >
+            {copiedResetLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-500" />}
+            <span>{copiedResetLink ? 'Reset Link Copied!' : 'Copy Retake / Reset Quiz Link'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Clear Confirmation Modal */}
@@ -575,26 +634,29 @@ export default function AdminSettings({
               <Trash2 className="w-6 h-6" />
             </div>
             <h4 className="text-base font-bold text-slate-900 mb-1">
-              Erase All Local Data?
+              Reset All Quiz Data?
             </h4>
             <p className="text-xs text-slate-500 mb-4">
-              This action cannot be undone. All participants and results stored in this browser will be permanently deleted.
+              This will erase all participants and results locally, wipe the rows in your connected Google Sheet, and automatically reset any participant phones so they can register and take the quiz anew.
             </p>
 
             <div className="flex gap-2">
               <button
                 type="button"
+                disabled={isClearingAll}
                 onClick={() => setShowClearConfirm(false)}
-                className="flex-1 py-2 px-3 rounded-xl border border-slate-200 text-slate-700 font-semibold text-xs cursor-pointer"
+                className="flex-1 py-2 px-3 rounded-xl border border-slate-200 text-slate-700 font-semibold text-xs cursor-pointer disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="button"
+                disabled={isClearingAll}
                 onClick={handleConfirmClearAll}
-                className="flex-1 py-2 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs cursor-pointer"
+                className="flex-1 py-2 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
-                Yes, Erase Everything
+                {isClearingAll && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                <span>{isClearingAll ? 'Erasing...' : 'Yes, Reset Everything'}</span>
               </button>
             </div>
           </div>
