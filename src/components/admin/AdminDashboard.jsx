@@ -1,12 +1,43 @@
 import React from 'react';
-import { Users, CheckCircle, Clock, Zap, FileSpreadsheet, Download, AlertCircle, ArrowUpRight, Award, ShieldAlert, Eye } from 'lucide-react';
-import { exportResultsCSV, exportParticipantsCSV, formatSecondsToMS } from '../../utils/storage';
+import {
+  Users,
+  CheckCircle,
+  Clock,
+  Zap,
+  FileSpreadsheet,
+  Download,
+  AlertCircle,
+  ArrowUpRight,
+  Award,
+  ShieldAlert,
+  Eye,
+  RefreshCw,
+  Cloud,
+  CloudOff,
+} from 'lucide-react';
+import {
+  exportResultsCSV,
+  exportParticipantsCSV,
+  formatSecondsToMS,
+  getGoogleSheetUrl,
+  formatDateTime,
+} from '../../utils/storage';
 
-export default function AdminDashboard({ participants, results, onNavigateTab, onSelectParticipant }) {
+export default function AdminDashboard({
+  participants,
+  results,
+  onNavigateTab,
+  onSelectParticipant,
+  onSyncCloud,
+  isSyncing,
+  lastSynced,
+}) {
   const totalRegistrations = participants.length;
   const totalSubmissions = results.length;
   const completedQuizzes = results.filter((r) => r.status === 'submitted').length;
   const incompleteAttempts = Math.max(0, totalRegistrations - totalSubmissions);
+
+  const hasSheet = Boolean(getGoogleSheetUrl());
 
   // Compute fastest completion
   const fastestSeconds = results.length > 0
@@ -25,20 +56,61 @@ export default function AdminDashboard({ participants, results, onNavigateTab, o
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      {/* Informational Banner: Frontend-Only Architecture */}
-      <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-900 to-teal-900 text-white shadow-sm flex items-start gap-3.5">
-        <div className="p-2 rounded-xl bg-white/10 shrink-0 mt-0.5">
-          <FileSpreadsheet className="w-5 h-5 text-amber-300" />
-        </div>
-        <div className="text-xs leading-relaxed flex-1">
-          <div className="font-bold text-sm text-amber-300 mb-0.5">
-            Frontend-Only Local Evaluation Mode
+      {/* Cloud Sync Status Banner */}
+      {hasSheet ? (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-900 to-teal-900 text-white shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5">
+          <div className="flex items-start gap-3 flex-1">
+            <div className="p-2 rounded-xl bg-white/10 shrink-0 mt-0.5">
+              <Cloud className="w-5 h-5 text-emerald-300" />
+            </div>
+            <div className="text-xs leading-relaxed">
+              <div className="font-bold text-sm text-emerald-300 flex items-center gap-2">
+                <span>Google Sheets Live Sync Connected</span>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              </div>
+              <p className="text-emerald-100/90 mt-0.5">
+                Participant registrations and quiz submissions are synced to your Google Sheet. Tap to merge latest submissions.
+                {lastSynced && (
+                  <span className="block text-[11px] text-emerald-300/80 mt-0.5">
+                    Last synced: {formatDateTime(lastSynced)}
+                  </span>
+                )}
+              </p>
+            </div>
           </div>
-          <p className="text-emerald-100/90">
-            All data shown is stored locally on this browser's localStorage. Export the results as CSV and upload to <span className="font-semibold text-white">Google Sheets</span> or Excel for centralized grading, archiving, and ranking.
-          </p>
+          <button
+            onClick={onSyncCloud}
+            disabled={isSyncing}
+            className="py-2 px-3.5 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-emerald-950 font-bold text-xs flex items-center gap-2 shrink-0 transition-colors shadow-xs cursor-pointer"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+            <span>{isSyncing ? 'Syncing...' : 'Sync Cloud Submissions'}</span>
+          </button>
         </div>
-      </div>
+      ) : (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-amber-950 text-white shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5">
+          <div className="flex items-start gap-3 flex-1">
+            <div className="p-2 rounded-xl bg-amber-500/20 text-amber-300 shrink-0 mt-0.5">
+              <CloudOff className="w-5 h-5 text-amber-400" />
+            </div>
+            <div className="text-xs leading-relaxed">
+              <div className="font-bold text-sm text-amber-300 flex items-center gap-1.5">
+                <span>Submissions From Other Devices Not Showing?</span>
+              </div>
+              <p className="text-slate-200/90 mt-0.5">
+                Because this app runs in the browser, mobile submissions stay on participants' phones until Google Sheet sync is enabled. Connect your Google Sheet to receive all submissions here live!
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => onNavigateTab('settings')}
+            className="py-2 px-3.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs flex items-center gap-1.5 shrink-0 transition-colors shadow-xs cursor-pointer"
+          >
+            <span>Connect Google Sheet</span>
+            <ArrowUpRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* KPI Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">

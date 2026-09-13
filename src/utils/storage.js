@@ -6,6 +6,7 @@
  */
 
 import { QUIZ_CONFIG, questions } from '../data/questions.js';
+import { DEFAULT_GOOGLE_SHEET_URL } from '../config/sheetConfig.js';
 
 export const STORAGE_KEYS = {
   PARTICIPANT: 'rabee_participant',
@@ -125,6 +126,15 @@ export const saveParticipant = (participantData) => {
     all.push(record);
   }
   safeSet(STORAGE_KEYS.ALL_PARTICIPANTS, all);
+
+  // Asynchronously sync new registration to Google Sheet
+  try {
+    sendToGoogleSheet({ action: 'register', participant: record }).catch((err) => {
+      console.warn('Google Sheet registration sync notice:', err);
+    });
+  } catch (err) {
+    console.warn('Google Sheet registration sync notice:', err);
+  }
 
   return record;
 };
@@ -337,6 +347,15 @@ export const submitQuizAttempt = (reason = 'manual') => {
   }
   safeSet(STORAGE_KEYS.ALL_RESULTS, allResults);
 
+  // Asynchronously sync completed attempt to Google Sheet
+  try {
+    sendToGoogleSheet({ action: 'submit', result: resultRecord }).catch((err) => {
+      console.warn('Google Sheet submission sync notice:', err);
+    });
+  } catch (err) {
+    console.warn('Google Sheet submission sync notice:', err);
+  }
+
   return resultRecord;
 };
 
@@ -542,6 +561,372 @@ export const deleteParticipant = (candidateCodeOrId) => {
     return false;
   }
 };
+
+// --- GOOGLE SHEETS LIVE SYNC UTILITIES ---
+
+export const getGoogleSheetUrl = () => {
+  try {
+    const saved = (localStorage.getItem(STORAGE_KEYS.GOOGLE_SHEET_URL) || '').trim();
+    if (saved) return saved;
+    return (DEFAULT_GOOGLE_SHEET_URL || '').trim();
+  } catch {
+    return (DEFAULT_GOOGLE_SHEET_URL || '').trim();
+  }
+};
+
+export const setGoogleSheetUrl = (url) => {
+  try {
+    const trimmed = (url || '').trim();
+    if (!trimmed) {
+      localStorage.removeItem(STORAGE_KEYS.GOOGLE_SHEET_URL);
+    } else {
+      localStorage.setItem(STORAGE_KEYS.GOOGLE_SHEET_URL, trimmed);
+    }
+    return true;
+  } catch (err) {
+    console.error('Error saving Google Sheet URL:', err);
+    return false;
+  }
+};
+
+export const getLastSyncTime = () => {
+  try {
+    return localStorage.getItem(STORAGE_KEYS.LAST_SYNC_TIME) || null;
+  } catch {
+    return null;
+  }
+};
+
+// Send registration or completed quiz result to Google Sheet Web App
+export const sendToGoogleSheet = async (payload) => {
+  const scriptUrl = getGoogleSheetUrl();
+  if (!scriptUrl) return { success: false, reason: 'No Google Sheet URL configured' };
+
+  try {
+    // Uses text/plain to avoid CORS preflight failures on Google Apps Script Web App
+    await fetch(scriptUrl, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+      },
+      body: JSON.stringify(payload),
+    });
+    return { success: true };
+  } catch (err) {
+    console.warn('Google Sheet sync notice:', err.message);
+    return { success: false, error: err.message };
+  }
+};
+
+// Test Google Sheet connectivity
+export const testGoogleSheetConnection = async () => {
+  const scriptUrl = getGoogleSheetUrl();
+  if (!scriptUrl) return { success: false, error: 'Google Sheet Web App URL is not set.' };
+
+  try {
+    const response = await fetch(scriptUrl, {
+      method: 'GET',
+      redirect: 'follow',
+    });
+
+    if (!response.ok) {
+      throw new Error(`Server returned HTTP ${response.status}`);
+    }
+
+    const json = await response.json();
+    return {
+      success: true,
+      status: json.status,
+      resultsCount: Array.isArray(json.results) ? json.results.length : 0,
+      participantsCount: Array.isArray(json.participants) ? json.participants.length : 0,
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// Fetch cloud submissions from Google Sheet Web App and merge into local admin data
+export const syncFromGoogleSheet = async () => {
+  const scriptUrl = getGoogleSheetUrl();
+  if (!scriptUrl) return { success: false, error: 'Google Sheet Web App URL is not set. Go to Settings to configure it.' };
+
+  try {
+    const response = await fetch(scriptUrl, {
+      method: 'GET',
+      redirect: 'follow',
+    });
+
+    if (!response.ok) {
+      throw new Error(`Google Sheets responded with HTTP status ${response.status}`);
+    }
+
+    const cloudData = await response.json();
+    if (!cloudData || (cloudData.status !== 'success' && !cloudData.results && !cloudData.participants)) {
+      throw new Error(cloudData?.error || 'Invalid response format from Google Sheet Web App');
+    }
+
+    // 1. Merge Participants
+    const localParticipants = getAllParticipants();
+    const pMap = new Map();
+    localParticipants.forEach((p) => {
+      const code = (p.candidateCode || p.participantId || '').trim().toUpperCase();
+      if (code) pMap.set(code, p);
+    });
+
+    if (Array.isArray(cloudData.participants)) {
+      cloudData.participants.forEach((p) => {
+        const code = (p.candidateCode || p.participantId || '').trim().toUpperCase();
+        if (code) {
+          const prev = pMap.get(code) || {};
+          pMap.set(code, { ...prev, ...p });
+        }
+      });
+    }
+    const finalParticipants = Array.from(pMap.values());
+    safeSet(STORAGE_KEYS.ALL_PARTICIPANTS, finalParticipants);
+
+    // 2. Merge Results
+    const localResults = getAllResults();
+    const rMap = new Map();
+    localResults.forEach((r) => {
+      const code = (r.candidateCode || r.participantId || '').trim().toUpperCase();
+      if (code) rMap.set(code, r);
+    });
+
+    if (Array.isArray(cloudData.results)) {
+      cloudData.results.forEach((r) => {
+        const code = (r.candidateCode || r.participantId || '').trim().toUpperCase();
+        if (code) {
+          const prev = rMap.get(code) || {};
+          rMap.set(code, { ...prev, ...r });
+        }
+      });
+    }
+    const finalResults = Array.from(rMap.values());
+    safeSet(STORAGE_KEYS.ALL_RESULTS, finalResults);
+
+    // Record last sync timestamp
+    const nowIso = new Date().toISOString();
+    try {
+      localStorage.setItem(STORAGE_KEYS.LAST_SYNC_TIME, nowIso);
+    } catch {
+      // ignore
+    }
+
+    return {
+      success: true,
+      participantsCount: finalParticipants.length,
+      resultsCount: finalResults.length,
+      lastSyncedAt: nowIso,
+    };
+  } catch (err) {
+    console.error('Error syncing from Google Sheet:', err);
+    return { success: false, error: err.message };
+  }
+};
+
+export const GOOGLE_APPS_SCRIPT_TEMPLATE = `// ==========================================
+// Google Apps Script for "ഉർവതൽ വുസ്ഖ്വ മെഗാ ക്വിസ്"
+// Paste into Extensions > Apps Script in Google Sheets
+// ==========================================
+
+function doPost(e) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var data = JSON.parse(e.postData.contents);
+    var action = data.action;
+
+    // 1. Record Completed Quiz Results
+    if (action === 'submit' || data.result) {
+      var r = data.result || data;
+      var resultsSheet = ss.getSheetByName('Results');
+      if (!resultsSheet) {
+        resultsSheet = ss.insertSheet('Results');
+        var headers = [
+          'Candidate Code', 'Name', 'Place', 'Mobile Number',
+          'Final Score', 'Correct Answers', 'Speed Bonus',
+          'Completion Time', 'Completion Seconds', 'Submission Type', 'Submitted At'
+        ];
+        for (var i = 1; i <= 20; i++) {
+          headers.push('Q' + i + ' Answer');
+        }
+        resultsSheet.appendRow(headers);
+        resultsSheet.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#d1fae5');
+        resultsSheet.setFrozenRows(1);
+      }
+
+      var row = [
+        r.candidateCode || r.participantId || '',
+        r.name || '',
+        r.place || r.institution || '',
+        r.mobileNumber || r.phone || '',
+        Number(r.finalScore || 0),
+        Number(r.correctAnswers || 0),
+        Number(r.bonusMarks || 0),
+        r.completionTime || '',
+        Number(r.completionSeconds || 0),
+        r.submissionType || 'Manual Submission',
+        r.submittedAt || new Date().toISOString()
+      ];
+
+      var answers = r.answers || {};
+      for (var q = 1; q <= 20; q++) {
+        var ans = answers[q];
+        row.push(ans !== undefined && ans !== null ? ans : '');
+      }
+
+      // Check if candidate already submitted; update if exists, otherwise append
+      var dataRange = resultsSheet.getDataRange().getValues();
+      var codeToFind = String(r.candidateCode || r.participantId || '').trim().toUpperCase();
+      var existingRow = -1;
+      for (var j = 1; j < dataRange.length; j++) {
+        if (String(dataRange[j][0]).trim().toUpperCase() === codeToFind) {
+          existingRow = j + 1;
+          break;
+        }
+      }
+
+      if (existingRow > 1) {
+        resultsSheet.getRange(existingRow, 1, 1, row.length).setValues([row]);
+      } else {
+        resultsSheet.appendRow(row);
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({ status: 'success', message: 'Result recorded' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 2. Record Registration
+    if (action === 'register' || data.participant) {
+      var p = data.participant || data;
+      var partSheet = ss.getSheetByName('Participants');
+      if (!partSheet) {
+        partSheet = ss.insertSheet('Participants');
+        var pHeaders = ['Candidate Code', 'Name', 'Place', 'Mobile Number', 'Email', 'Registered At', 'Status'];
+        partSheet.appendRow(pHeaders);
+        partSheet.getRange(1, 1, 1, pHeaders.length).setFontWeight('bold').setBackground('#e0f2fe');
+        partSheet.setFrozenRows(1);
+      }
+
+      var pRow = [
+        p.candidateCode || p.participantId || '',
+        p.name || '',
+        p.place || p.institution || '',
+        p.mobileNumber || p.phone || '',
+        p.email || '',
+        p.registeredAt || new Date().toISOString(),
+        p.status || 'registered'
+      ];
+
+      var pData = partSheet.getDataRange().getValues();
+      var pCode = String(p.candidateCode || p.participantId || '').trim().toUpperCase();
+      var pIdx = -1;
+      for (var k = 1; k < pData.length; k++) {
+        if (String(pData[k][0]).trim().toUpperCase() === pCode) {
+          pIdx = k + 1;
+          break;
+        }
+      }
+
+      if (pIdx > 1) {
+        partSheet.getRange(pIdx, 1, 1, pRow.length).setValues([pRow]);
+      } else {
+        partSheet.appendRow(pRow);
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({ status: 'success', message: 'Participant registered' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Unknown action' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ status: 'error', error: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet(e) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var results = [];
+    var participants = [];
+
+    // Read Results
+    var resultsSheet = ss.getSheetByName('Results');
+    if (resultsSheet) {
+      var rData = resultsSheet.getDataRange().getValues();
+      if (rData.length > 1) {
+        for (var i = 1; i < rData.length; i++) {
+          var row = rData[i];
+          if (!row[0]) continue;
+          var answersObj = {};
+          for (var q = 1; q <= 20; q++) {
+            if (row[10 + q] !== '' && row[10 + q] !== undefined) {
+              answersObj[q] = Number(row[10 + q]);
+            }
+          }
+          results.push({
+            candidateCode: String(row[0]),
+            participantId: String(row[0]),
+            name: String(row[1] || ''),
+            place: String(row[2] || ''),
+            institution: String(row[2] || ''),
+            mobileNumber: String(row[3] || ''),
+            phone: String(row[3] || ''),
+            finalScore: Number(row[4] || 0),
+            correctAnswers: Number(row[5] || 0),
+            totalQuestions: 20,
+            bonusMarks: Number(row[6] || 0),
+            completionTime: String(row[7] || ''),
+            completionSeconds: Number(row[8] || 0),
+            submissionType: String(row[9] || 'Manual Submission'),
+            submittedAt: String(row[10] || ''),
+            status: 'submitted',
+            answers: answersObj
+          });
+        }
+      }
+    }
+
+    // Read Participants
+    var partSheet = ss.getSheetByName('Participants');
+    if (partSheet) {
+      var pData = partSheet.getDataRange().getValues();
+      if (pData.length > 1) {
+        for (var j = 1; j < pData.length; j++) {
+          var pRow = pData[j];
+          if (!pRow[0]) continue;
+          participants.push({
+            candidateCode: String(pRow[0]),
+            participantId: String(pRow[0]),
+            name: String(pRow[1] || ''),
+            place: String(pRow[2] || ''),
+            institution: String(pRow[2] || ''),
+            mobileNumber: String(pRow[3] || ''),
+            phone: String(pRow[3] || ''),
+            email: String(pRow[4] || ''),
+            registeredAt: String(pRow[5] || ''),
+            status: String(pRow[6] || 'registered')
+          });
+        }
+      }
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({
+      status: 'success',
+      results: results,
+      participants: participants
+    })).setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({
+      status: 'error',
+      error: err.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+`;
 
 // Clear all local quiz data completely
 export const clearAllLocalData = () => {

@@ -21,6 +21,7 @@ import {
   getAllParticipants,
   getAllResults,
   checkAdminAuth,
+  setGoogleSheetUrl,
 } from './utils/storage';
 
 export default function App() {
@@ -68,6 +69,17 @@ export default function App() {
   };
 
   useEffect(() => {
+    // Check if URL query contains sheet configuration (e.g. ?sheet=https://script.google.com/...)
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const sheetParam = params.get('sheet') || params.get('sheetUrl');
+      if (sheetParam && sheetParam.startsWith('http')) {
+        setGoogleSheetUrl(sheetParam);
+      }
+    } catch {
+      // ignore
+    }
+
     const handleRouteSync = () => {
       const { p, qState, qResult, isCompleted, isAuthed } = refreshStorageData();
 
