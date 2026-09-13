@@ -1,0 +1,163 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Baloo Chettan 2', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: 'Baloo Chettan 2', 'Outfit', sans-serif;
+  --font-malayalam: 'Baloo Chettan 2', 'Noto Sans Malayalam', sans-serif;
+}
+
+/* Baloo Chettan 2 Font Definitions from user zip */
+@font-face {
+  font-family: 'Baloo Chettan 2';
+  src: local('Baloo Chettan 2'), local('BalooChettan2-Regular'), url('/fonts/BalooChettan2-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Baloo Chettan 2';
+  src: local('Baloo Chettan 2 Medium'), local('BalooChettan2-Medium'), url('/fonts/BalooChettan2-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Baloo Chettan 2';
+  src: local('Baloo Chettan 2 SemiBold'), local('BalooChettan2-SemiBold'), url('/fonts/BalooChettan2-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Baloo Chettan 2';
+  src: local('Baloo Chettan 2 Bold'), local('BalooChettan2-Bold'), url('/fonts/BalooChettan2-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Baloo Chettan 2';
+  src: local('Baloo Chettan 2 ExtraBold'), local('BalooChettan2-ExtraBold'), url('/fonts/BalooChettan2-ExtraBold.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+    font-family: 'Baloo Chettan 2', 'Noto Sans Malayalam', 'Plus Jakarta Sans', system-ui, sans-serif;
+  }
+
+  body {
+    background-color: #f8fafc;
+    color: #0f172a;
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    font-family: 'Baloo Chettan 2', 'Noto Sans Malayalam', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Universal text elements inherit Baloo Chettan 2 */
+  h1, h2, h3, h4, h5, h6, p, span, button, input, select, textarea, label, div, li, td, th {
+    font-family: 'Baloo Chettan 2', 'Noto Sans Malayalam', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  button, a, input, select {
+    touch-action: manipulation;
+  }
+
+  h1, h2, h3, h4, .font-serif {
+    font-family: 'Baloo Chettan 2', 'Outfit', sans-serif;
+    letter-spacing: normal;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+}
+
+/* Explicit Malayalam text class ensuring Baloo Chettan 2 with optimal Malayalam line-height */
+.font-malayalam,
+[lang="ml"],
+.malayalam-text {
+  font-family: 'Baloo Chettan 2', 'Noto Sans Malayalam', sans-serif !important;
+  letter-spacing: normal !important;
+  line-height: 1.6;
+}
+
+/* Preserve crisp monospace font for candidate codes, timers, question numbers, code tags */
+.font-mono,
+code,
+pre,
+kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Custom subtle scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.scrollbar-none {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Mobile safe area padding utilities */
+.safe-bottom {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+}
+
+.safe-top {
+  padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+}
